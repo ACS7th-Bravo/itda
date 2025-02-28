@@ -1,6 +1,10 @@
 image: docker:latest
 
+services:
+  - docker:dind
+
 variables:
+  DOCKER_TLS_CERTDIR: ""  # docker:dind 사용 시 TLS 인증 비활성화
   REGISTRY: "192.168.2.140:443"
   SONAR_HOST_URL: "http://192.168.2.140:9000"
   SONAR_PROJECT_KEY: "bravo-itda"
