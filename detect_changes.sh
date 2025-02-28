@@ -1,5 +1,5 @@
 #!/bin/bash
-# detect_changes.sh
+# detect_changes.sh - 커밋 테스트
 
 echo "Detecting changed services..."
 
