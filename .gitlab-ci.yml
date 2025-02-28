@@ -15,10 +15,6 @@ stages:
 detect-changes:
   stage: detect
   script: |
-    echo "=== Debug: Listing files ==="
-    ls -al
-    echo "=== Showing detect_changes.sh content ==="
-    cat detect_changes.sh
     chmod +x detect_changes.sh
     sh detect_changes.sh
   artifacts:
@@ -31,15 +27,16 @@ sonarqube-scan:
   image: sonarsource/sonar-scanner-cli:latest
   needs: ["detect-changes"]
   script: |
-    # fail fast 설정 (필요 시)
     set -e
     if [ ! -s changed_services.txt ]; then
       echo "No changes. Skipping SonarQube scan."
       exit 0
     fi
+
     sonar-scanner \
       -Dsonar.projectKey=$SONAR_PROJECT_KEY \
       -Dsonar.sources=. \
+      -Dsonar.exclusions=**/harbor/** \
       -Dsonar.host.url=$SONAR_HOST_URL \
       -Dsonar.login=$GITLAB_SONAR_TOKEN
   allow_failure: true
