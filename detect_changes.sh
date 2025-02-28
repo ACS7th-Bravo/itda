@@ -1,28 +1,16 @@
-#!/bin/bash
+#!/bin/sh
 # detect_changes.sh - 커밋 테스트2
-
 echo "Detecting changed services..."
-
-# 기준 커밋 설정 (필요에 따라 CI 시스템에서 제공하는 값을 사용할 수 있습니다)
 BASE_COMMIT="HEAD~1"
-
-# 변경된 파일 목록 가져오기
 CHANGED_FILES=$(git diff --name-only "$BASE_COMMIT")
-
-# 서비스 목록 (백엔드)
-BACKEND_SERVICES=("auth-service" "lyrics-service" "playlist-service" "search-service" "translation-service")
-
-# 프론트엔드 경로 (예시로 Frontend/bravo-front 사용)
+# 백엔드 서비스 목록을 공백으로 구분된 문자열로 설정
+BACKEND_SERVICES="auth-service lyrics-service playlist-service search-service translation-service"
 FRONTEND_PATH="Frontend/bravo-front/"
-
-# 결과를 저장할 파일
 CHANGED_SERVICES_FILE="changed_services.txt"
-
-# 기존 결과 파일 삭제
 rm -f "$CHANGED_SERVICES_FILE"
 
 # 백엔드 변경 사항 감지
-for SERVICE in "${BACKEND_SERVICES[@]}"; do
+for SERVICE in $BACKEND_SERVICES; do
   SERVICE_PATH="Backend/Image/$SERVICE/"
   if echo "$CHANGED_FILES" | grep -q "^$SERVICE_PATH"; then
     echo "Detected changes in backend service: $SERVICE"
