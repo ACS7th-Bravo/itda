@@ -20,7 +20,7 @@ detect-changes:
     echo "=== Showing detect_changes.sh content ==="
     cat detect_changes.sh
     chmod +x detect_changes.sh
-    bash detect_changes.sh
+    sh detect_changes.sh
   artifacts:
     paths:
       - changed_services.txt
