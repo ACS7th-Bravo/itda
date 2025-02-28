@@ -1,0 +1,19 @@
+# Image/playlist-service/docker-compose.yaml
+
+version: '3.8'
+
+services:
+  app:
+    image: playlist-service:test
+    restart: always
+    env_file:
+      - .env
+    environment:
+       # Playlist Service 전용 환경 변수
+      PORT: "3005"
+      MONGO_URI: "mongodb://192.168.2.137:27017/itda"
+    ports:
+      - "3005:3005"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
