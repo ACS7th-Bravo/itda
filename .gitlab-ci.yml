@@ -1,7 +1,8 @@
 image: docker:latest
 
 services:
-  - docker:dind
+  - name: docker:dind
+    command: ["--insecure-registry=192.168.2.140:443"]
 
 variables:
   DOCKER_TLS_CERTDIR: ""  # docker:dind 사용 시 TLS 인증 비활성화
