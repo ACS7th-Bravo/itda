@@ -14,12 +14,13 @@ stages:
 # 1) 변경 사항 감지 스테이지
 detect-changes:
   stage: detect
-  script:
-    - echo "=== Debug: Listing files ==="
-    - ls -al
-    - cat detect_changes.sh
-    - chmod +x detect_changes.sh
-    - ./detect_changes.sh
+  script: |
+    echo "=== Debug: Listing files ==="
+    ls -al
+    echo "=== Showing detect_changes.sh content ==="
+    cat detect_changes.sh
+    chmod +x detect_changes.sh
+    ./detect_changes.sh
   artifacts:
     paths:
       - changed_services.txt
@@ -30,11 +31,12 @@ sonarqube-scan:
   image: sonarsource/sonar-scanner-cli:latest
   needs: ["detect-changes"]
   script: |
+    # fail fast 설정 (필요 시)
+    set -e
     if [ ! -s changed_services.txt ]; then
       echo "No changes. Skipping SonarQube scan."
       exit 0
     fi
-
     sonar-scanner \
       -Dsonar.projectKey=$SONAR_PROJECT_KEY \
       -Dsonar.sources=. \
@@ -48,6 +50,7 @@ build-image:
   needs: ["detect-changes", "sonarqube-scan"]
   image: docker:latest
   script: |
+    set -e
     if [ ! -s changed_services.txt ]; then
       echo "No changes detected. Skipping build."
       exit 0
@@ -59,17 +62,16 @@ build-image:
     while read line; do
       TYPE=$(echo "$line" | cut -d':' -f1)
       NAME=$(echo "$line" | cut -d':' -f2)
-
+      
       if [ "$TYPE" = "backend" ]; then
         SERVICE_DIR="Backend/Image/$NAME"
         IMAGE_NAME="$REGISTRY/backend/itda-$NAME:latest"
-        echo "Building backend image for $NAME..."
+        echo "Building backend image for $NAME from $SERVICE_DIR..."
         docker build -t "$IMAGE_NAME" "$SERVICE_DIR"
-
       elif [ "$TYPE" = "frontend" ]; then
         SERVICE_DIR="Frontend/bravo-front"
         IMAGE_NAME="$REGISTRY/frontend/itda-ui:latest"
-        echo "Building frontend image for $NAME..."
+        echo "Building frontend image for $NAME from $SERVICE_DIR..."
         docker build -t "$IMAGE_NAME" "$SERVICE_DIR"
       fi
     done < changed_services.txt
@@ -80,6 +82,7 @@ push-image:
   needs: ["build-image"]
   image: docker:latest
   script: |
+    set -e
     if [ ! -s changed_services.txt ]; then
       echo "No changes detected. Skipping push."
       exit 0
@@ -91,7 +94,7 @@ push-image:
     while read line; do
       TYPE=$(echo "$line" | cut -d':' -f1)
       NAME=$(echo "$line" | cut -d':' -f2)
-
+      
       if [ "$TYPE" = "backend" ]; then
         IMAGE_NAME="$REGISTRY/backend/itda-$NAME:latest"
         echo "Pushing $IMAGE_NAME..."
