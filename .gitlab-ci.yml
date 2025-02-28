@@ -53,6 +53,18 @@ build-image:
       exit 0
     fi
 
+    echo "=== Configure insecure-registries ==="
+    # 1) /etc/docker/daemon.json 생성
+    cat <<EOF > /etc/docker/daemon.json
+    {
+      "insecure-registries" : ["192.168.2.140:443"]
+    }
+    EOF
+
+    # 2) 백그라운드로 dockerd 실행
+    dockerd --host=unix:///var/run/docker.sock --config-file=/etc/docker/daemon.json &
+    sleep 5  # dockerd가 뜰 때까지 잠시 대기
+
     echo "=== Docker login to Harbor ==="
     echo "$HARBOR_PASSWORD" | docker login -u "$HARBOR_USERNAME" --password-stdin "$REGISTRY"
 
