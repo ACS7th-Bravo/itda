@@ -11,14 +11,12 @@ FRONTEND_PATH="Frontend/bravo-front/"
 CHANGED_SERVICES_FILE="changed_services.txt"
 rm -f "$CHANGED_SERVICES_FILE"
 
-# 백엔드 변경 사항 감지 (수정 후: 서비스 이름에서 "-service" 접미어 제거)
+# 백엔드 변경 사항 감지: 서비스 이름만 출력
 for SERVICE in $BACKEND_SERVICES; do
   SERVICE_PATH="Backend/Image/$SERVICE/"
   if echo "$CHANGED_FILES" | grep -q "^$SERVICE_PATH"; then
-    # 만약 SERVICE가 "search-service"처럼 끝난다면, "-service"를 제거하여 "search"로 만듭니다.
-    BASE_NAME=${SERVICE%-service}
-    echo "Detected changes in backend service: $SERVICE (using name: $BASE_NAME)"
-    echo "backend:$BASE_NAME" >> "$CHANGED_SERVICES_FILE"
+    echo "Detected changes in backend service: $SERVICE"
+    echo "backend:$SERVICE" >> "$CHANGED_SERVICES_FILE"
   fi
 done
 

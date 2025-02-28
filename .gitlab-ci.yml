@@ -66,20 +66,26 @@ build-push:
     echo "$HARBOR_PASSWORD" | docker login -u "$HARBOR_USERNAME" --password-stdin "$REGISTRY"
 
     while read line; do
+      # 예상 형식: TYPE:FOLDER (예: backend:search-service 또는 frontend:Frontend/bravo-front/)
       TYPE=$(echo "$line" | cut -d':' -f1)
       NAME=$(echo "$line" | cut -d':' -f2)
       
       if [ "$TYPE" = "backend" ]; then
         SERVICE_DIR="Backend/Image/$NAME"
-        IMAGE_NAME="$REGISTRY/backend/itda-$NAME:latest"
-        echo "Building backend image for $NAME from $SERVICE_DIR..."
+        # 이미지 태그는 "-service" 접미어 제거 (예: "search-service" -> "search")
+        IMAGE_TAG="$NAME"
+        if echo "$NAME" | grep -q -- '-service$'; then
+          IMAGE_TAG=${NAME%-service}
+        fi
+        IMAGE_NAME="$REGISTRY/backend/itda-$IMAGE_TAG:latest"
+        echo "Building backend image for $NAME (tag: $IMAGE_TAG) from $SERVICE_DIR..."
         docker build -t "$IMAGE_NAME" "$SERVICE_DIR"
         echo "Pushing $IMAGE_NAME..."
         docker push "$IMAGE_NAME"
       elif [ "$TYPE" = "frontend" ]; then
         SERVICE_DIR="Frontend/bravo-front"
         IMAGE_NAME="$REGISTRY/frontend/itda-ui:latest"
-        echo "Building frontend image for $NAME from $SERVICE_DIR..."
+        echo "Building frontend image from $SERVICE_DIR..."
         docker build -t "$IMAGE_NAME" "$SERVICE_DIR"
         echo "Pushing $IMAGE_NAME..."
         docker push "$IMAGE_NAME"
