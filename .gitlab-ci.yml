@@ -14,9 +14,12 @@ stages:
 # 1) 변경 사항 감지 스테이지
 detect-changes:
   stage: detect
-  script: |
-    chmod +x detect_changes.sh
-    ./detect_changes.sh
+  script:
+    - echo "=== Debug: Listing files ==="
+    - ls -al
+    - cat detect_changes.sh
+    - chmod +x detect_changes.sh
+    - ./detect_changes.sh
   artifacts:
     paths:
       - changed_services.txt
