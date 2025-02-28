@@ -47,27 +47,20 @@ sonarqube-scan:
       -Dsonar.login=$GITLAB_SONAR_TOKEN
   allow_failure: true
 
-# 3) Docker 빌드 스테이지
-build-image:
-  stage: build
+# 3) Docker 빌드 및 푸시 통합 스테이지
+build-push:
+  stage: build_push
   needs: ["detect-changes", "sonarqube-scan"]
   image: docker:latest
   script: |
     set -e
     if [ ! -s changed_services.txt ]; then
-      echo "No changes detected. Skipping build."
+      echo "No changes detected. Skipping build and push."
       exit 0
     fi
 
     echo "=== Changed services content ==="
     cat changed_services.txt
-
-    # CA 인증서 설치 (Alpine 기반 docker:latest)
-    apk update && apk add --no-cache ca-certificates
-
-    # HARBOR_CA_BASE64 변수에 Base64로 인코딩된 CA 인증서가 저장되어 있어야 함
-    echo "$HARBOR_CA_BASE64" | base64 -d > /usr/local/share/ca-certificates/harbor.crt
-    update-ca-certificates
 
     echo "=== Docker login to Harbor ==="
     echo "$HARBOR_PASSWORD" | docker login -u "$HARBOR_USERNAME" --password-stdin "$REGISTRY"
@@ -81,42 +74,13 @@ build-image:
         IMAGE_NAME="$REGISTRY/backend/itda-$NAME:latest"
         echo "Building backend image for $NAME from $SERVICE_DIR..."
         docker build -t "$IMAGE_NAME" "$SERVICE_DIR"
+        echo "Pushing $IMAGE_NAME..."
+        docker push "$IMAGE_NAME"
       elif [ "$TYPE" = "frontend" ]; then
         SERVICE_DIR="Frontend/bravo-front"
         IMAGE_NAME="$REGISTRY/frontend/itda-ui:latest"
         echo "Building frontend image for $NAME from $SERVICE_DIR..."
         docker build -t "$IMAGE_NAME" "$SERVICE_DIR"
-      fi
-    done < changed_services.txt
-  artifacts:
-    paths:
-      - changed_services.txt
-
-# 4) Docker 푸시 스테이지
-push-image:
-  stage: push
-  needs: ["build-image"]
-  image: docker:latest
-  script: |
-    set -e
-    if [ ! -s changed_services.txt ]; then
-      echo "No changes detected. Skipping push."
-      exit 0
-    fi
-
-    echo "=== Docker login to Harbor (again) ==="
-    echo "$HARBOR_PASSWORD" | docker login -u "$HARBOR_USERNAME" --password-stdin "$REGISTRY"
-
-    while read line; do
-      TYPE=$(echo "$line" | cut -d':' -f1)
-      NAME=$(echo "$line" | cut -d':' -f2)
-      
-      if [ "$TYPE" = "backend" ]; then
-        IMAGE_NAME="$REGISTRY/backend/itda-$NAME:latest"
-        echo "Pushing $IMAGE_NAME..."
-        docker push "$IMAGE_NAME"
-      elif [ "$TYPE" = "frontend" ]; then
-        IMAGE_NAME="$REGISTRY/frontend/itda-ui:latest"
         echo "Pushing $IMAGE_NAME..."
         docker push "$IMAGE_NAME"
       fi
