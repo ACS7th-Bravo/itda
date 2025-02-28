@@ -24,4 +24,4 @@ vite.config.ts.timestamp-*
 
 src/lib/youtubeStore.js
 
-docker-compose.yaml
+*docker-compose*
