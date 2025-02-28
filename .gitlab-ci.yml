@@ -58,6 +58,9 @@ build-image:
       exit 0
     fi
 
+    echo "=== Changed services content ==="
+    cat changed_services.txt
+
     # CA 인증서 설치 (Alpine 기반 docker:latest)
     apk update && apk add --no-cache ca-certificates
 
