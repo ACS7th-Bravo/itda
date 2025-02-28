@@ -49,7 +49,7 @@ sonarqube-scan:
 
 # 3) Docker 빌드 및 푸시 통합 스테이지
 build-push:
-  stage: build_push
+  stage: build
   needs: ["detect-changes", "sonarqube-scan"]
   image: docker:latest
   script: |
