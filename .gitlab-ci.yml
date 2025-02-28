@@ -55,6 +55,7 @@ build-image:
 
     echo "=== Configure insecure-registries ==="
     # 1) /etc/docker/daemon.json 생성
+    mkdir -p /etc/docker
     cat <<EOF > /etc/docker/daemon.json
     {
       "insecure-registries" : ["192.168.2.140:443"]
