@@ -1,0 +1,53 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: itda-ui.conf
+  namespace: itda-fe-ns
+data:
+  PORT: "5174"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: itda-auth.conf
+  namespace: itda-be-ns
+data:
+  PORT: "3001"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: itda-search.conf
+  namespace: itda-be-ns
+data:
+  PORT: "3002"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: itda-lyrics.conf
+  namespace: itda-be-ns
+data:
+  PORT: "3003"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: itda-translating.conf
+  namespace: itda-be-ns
+data:
+  PORT: "3004"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: itda-playlist.conf
+  namespace: itda-be-ns
+data:
+  PORT: "3005"

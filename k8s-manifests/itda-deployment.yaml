@@ -1,0 +1,320 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: itda-ui
+  namespace: itda-fe-ns
+  labels:
+    app: itda-ui
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: itda-ui
+  template:
+    metadata:
+      labels:
+        app: itda-ui
+    spec:
+      imagePullSecrets:
+        - name: harbor-credential
+      containers:
+        - name: itda-ui
+          image: 192.168.2.140:443/frontend/itda-ui:2.4
+          ports:
+            - containerPort: 5174
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: itda-ui.conf
+                  key: PORT
+            - name: VITE_BACKEND_URL
+              valueFrom:
+                secretKeyRef:
+                  name: itda-ui.secret
+                  key: VITE_BACKEND_URL
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: itda-auth
+  namespace: itda-be-ns
+  labels:
+    app: itda-auth
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: itda-auth
+  template:
+    metadata:
+      labels:
+        app: itda-auth
+    spec:
+      imagePullSecrets:
+        - name: harbor-credential
+      containers:
+        - name: itda-auth
+          image: 192.168.2.140:443/backend/itda-auth:2.4
+          ports:
+            - containerPort: 3001
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: itda-auth.conf
+                  key: PORT
+            - name: GOOGLE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: itda-auth.secret
+                  key: GOOGLE_CLIENT_ID
+            - name: GOOGLE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: itda-auth.secret
+                  key: GOOGLE_CLIENT_SECRET
+            - name: GOOGLE_REDIRECT_URI
+              valueFrom:
+                secretKeyRef:
+                  name: itda-auth.secret
+                  key: GOOGLE_REDIRECT_URI
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: itda-auth.secret
+                  key: JWT_SECRET
+            - name: FRONTEND_URL
+              valueFrom:
+                secretKeyRef:
+                  name: itda-auth.secret
+                  key: FRONTEND_URL
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: itda-auth.secret
+                  key: MONGO_URI
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: itda-search
+  namespace: itda-be-ns
+  labels:
+    app: itda-search
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: itda-search
+  template:
+    metadata:
+      labels:
+        app: itda-search
+    spec:
+      imagePullSecrets:
+        - name: harbor-credential
+      containers:
+        - name: itda-search
+          image: 192.168.2.140:443/backend/itda-search:2.4
+          ports:
+            - containerPort: 3002
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: itda-search.conf
+                  key: PORT
+            - name: SPOTIFY_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: itda-search.secret
+                  key: SPOTIFY_CLIENT_ID
+            - name: SPOTIFY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: itda-search.secret
+                  key: SPOTIFY_CLIENT_SECRET
+            - name: YOUTUBE_API_KEYS
+              valueFrom:
+                secretKeyRef:
+                  name: itda-search.secret
+                  key: YOUTUBE_API_KEYS
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: itda-search.secret
+                  key: MONGO_URI
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: itda-lyrics
+  namespace: itda-be-ns
+  labels:
+    app: itda-lyrics
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: itda-lyrics
+  template:
+    metadata:
+      labels:
+        app: itda-lyrics
+    spec:
+      imagePullSecrets:
+        - name: harbor-credential
+      containers:
+        - name: itda-lyrics
+          image: 192.168.2.140:443/backend/itda-lyrics:2.4
+          ports:
+            - containerPort: 3003
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: itda-lyrics.conf
+                  key: PORT
+            - name: LRCLIB_API_BASE
+              valueFrom:
+                secretKeyRef:
+                  name: itda-lyrics.secret
+                  key: LRCLIB_API_BASE
+            - name: MUSIXMATCH_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: itda-lyrics.secret
+                  key: MUSIXMATCH_API_KEY
+            - name: MUSIXMATCH_API_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: itda-lyrics.secret
+                  key: MUSIXMATCH_API_HOST
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: itda-lyrics.secret
+                  key: MONGO_URI
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: itda-translation
+  namespace: itda-be-ns
+  labels:
+    app: itda-translation
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: itda-translation
+  template:
+    metadata:
+      labels:
+        app: itda-translation
+    spec:
+      imagePullSecrets:
+        - name: harbor-credential
+      containers:
+        - name: itda-translation
+          image: 192.168.2.140:443/backend/itda-translation:2.4
+          ports:
+            - containerPort: 3004
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: itda-translating.conf
+                  key: PORT
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: itda-translation.secret
+                  key: MONGO_URI
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: itda-translation.secret
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: itda-translation.secret
+                  key: AWS_SECRET_ACCESS_KEY
+            - name: AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: itda-translation.secret
+                  key: AWS_REGION
+            - name: INFERENCE_PROFILE_ARN
+              valueFrom:
+                secretKeyRef:
+                  name: itda-translation.secret
+                  key: INFERENCE_PROFILE_ARN
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: itda-playlist
+  namespace: itda-be-ns
+  labels:
+    app: itda-playlist
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: itda-playlist
+  template:
+    metadata:
+      labels:
+        app: itda-playlist
+    spec:
+      imagePullSecrets:
+        - name: harbor-credential
+      containers:
+        - name: itda-playlist
+          image: 192.168.2.140:443/backend/itda-playlist:2.4
+          ports:
+            - containerPort: 3005
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: itda-playlist.conf
+                  key: PORT
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: itda-playlist.secret
+                  key: MONGO_URI
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: itda-redis
+  namespace: itda-redis-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: itda-redis
+  template:
+    metadata:
+      labels:
+        app: itda-redis
+    spec:
+      containers:
+        - name: itda-redis
+          image: 192.168.2.140:443/db/itda-redis:1.0
+          ports:
+            - containerPort: 6379
+      imagePullSecrets:
+        - name: harbor-credential
