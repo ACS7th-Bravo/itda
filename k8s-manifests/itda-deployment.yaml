@@ -20,7 +20,7 @@ spec:
         - name: harbor-credential
       containers:
         - name: itda-ui
-          image: 192.168.2.140:443/frontend/itda-ui:4.1
+          image: 192.168.2.140:443/frontend/itda-ui:latest
           ports:
             - containerPort: 5174
           env:
@@ -61,7 +61,7 @@ spec:
       - name: harbor-credential
       containers:
         - name: itda-auth
-          image: 192.168.2.140:443/backend/itda-auth:4.1
+          image: 192.168.2.140:443/backend/itda-auth:latest
           ports:
             - containerPort: 3001
           env:
@@ -143,7 +143,7 @@ spec:
       - name: harbor-credential
       containers:
         - name: itda-search
-          image: 192.168.2.140:443/backend/itda-search:4.1
+          image: 192.168.2.140:443/backend/itda-search:latest
           ports:
             - containerPort: 3002
           env:
@@ -216,7 +216,7 @@ spec:
       - name: harbor-credential
       containers:
         - name: itda-lyrics
-          image: 192.168.2.140:443/backend/itda-lyrics:4.1
+          image: 192.168.2.140:443/backend/itda-lyrics:latest
           ports:
             - containerPort: 3003
           env:
@@ -288,7 +288,7 @@ spec:
       - name: harbor-credential
       containers:
         - name: itda-translation
-          image: 192.168.2.140:443/backend/itda-translation:4.1
+          image: 192.168.2.140:443/backend/itda-translation:latest
           ports:
             - containerPort: 3004
           env:
@@ -365,7 +365,7 @@ spec:
       - name: harbor-credential
       containers:
         - name: itda-playlist
-          image: 192.168.2.140:443/backend/itda-playlist:4.1
+          image: 192.168.2.140:443/backend/itda-playlist:latest
           ports:
             - containerPort: 3005
           env:
