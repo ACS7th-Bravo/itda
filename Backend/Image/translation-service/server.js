@@ -1,13 +1,11 @@
 //Image/translation-service/routes/server.js
 
 import express from 'express';
-// import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 dotenv.config();
 
 const app = express();
-// app.use(cors());
 app.use(express.json());
 
 
@@ -31,7 +29,7 @@ app.get('/healthz', (req, res) => {
 // 🟢 Readiness Probe: 애플리케이션이 특정 리소스(예: 환경 변수)를 정상적으로 읽을 수 있는지 확인
 app.get('/ready', (req, res) => {
   console.log(`${new Date().toISOString()} - 🔹 Translation Readiness: `);
-  if ( process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && process.env.AWS_REGION && process.env.INFERENCE_PROFILE_ARN && process.env.MONGO_URI ) {
+  if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && process.env.AWS_REGION && process.env.INFERENCE_PROFILE_ARN && process.env.MONGO_URI) {
     res.status(200).send('Translation READY');
     console.log(`${new Date().toISOString()} - 🔹 Translation Readiness: READY 😋\n`);
   } else {

@@ -1,13 +1,11 @@
 //Image/search-service/server.js
 
 import express from 'express';
-// import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 dotenv.config();
 
 const app = express();
-// app.use(cors());
 app.use(express.json());
 
 // 라우트 연결
@@ -30,7 +28,7 @@ app.get('/healthz', (req, res) => {
 // 🟢 Readiness Probe: 애플리케이션이 특정 리소스(예: 환경 변수)를 정상적으로 읽을 수 있는지 확인
 app.get('/ready', (req, res) => {
   console.log(`${new Date().toISOString()} - 🔹 Search Readiness: `);
-  if ( process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET && process.env.YOUTUBE_API_KEYS && process.env.MONGO_URI) {
+  if (process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET && process.env.YOUTUBE_API_KEYS && process.env.MONGO_URI) {
     res.status(200).send('Search READY');
     console.log(`${new Date().toISOString()} - 🔹 Search Readiness: READY 😋\n`);
   } else {

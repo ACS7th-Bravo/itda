@@ -1,14 +1,12 @@
 //Image/auth-service/server.js
 
 import express from 'express';
-// import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 
 dotenv.config();
 
 const app = express();
-// app.use(cors());
 app.use(express.json());
 
 // 미들웨어: 모든 요청을 로깅
@@ -42,13 +40,13 @@ app.get('/ready', (req, res) => {
 });
 
 // MongoDB 연결
-mongoose.connect(process.env.MONGO_URI, {/* 옵션 */})
+mongoose.connect(process.env.MONGO_URI, {/* 옵션 */ })
   .then(() => console.log('MongoDB connected (Auth Service)'))
   .catch(err => console.error('MongoDB connection error:', err));
 
 
 // 실제 포트가 3001이라면 아래처럼
 const PORT = process.env.PORT || 3001;
-app.listen(PORT,'0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Auth Service running on port ${PORT}`);
 });
