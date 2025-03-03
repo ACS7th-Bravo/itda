@@ -44,7 +44,7 @@ sonarqube-scan:
       -Dsonar.sources=. \
       -Dsonar.exclusions=**/harbor/** \
       -Dsonar.host.url=$SONAR_HOST_URL \
-      -Dsonar.login=$GITLAB_SONAR_TOKEN
+      -Dsonar.token=$GITLAB_SONAR_TOKEN
   allow_failure: true
 
 # 3) Docker 빌드 및 푸시 통합 스테이지
