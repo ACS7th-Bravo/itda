@@ -14,10 +14,31 @@ jobs:
         with:
           fetch-depth: 0  # 🔥 전체 Git 히스토리를 가져옴
 
+      - name: Set committer email based on github.actor
+        id: set_email
+        run: |
+          case "${{ github.actor }}" in
+            "sonjunhyun")
+              echo "email=leonica0429@gmail.com" >> $GITHUB_OUTPUT
+              ;;
+            "treyarch513")
+              echo "email=treyarch513@gmail.com" >> $GITHUB_OUTPUT
+              ;;
+            "wlstmdals")
+              echo "email=alex000218@naver.com" >> $GITHUB_OUTPUT
+              ;;
+            "sohamlim0118")
+              echo "email=1005soham@naver.com" >> $GITHUB_OUTPUT
+              ;;
+            *)
+              echo "email=${{ github.actor }}@users.noreply.github.com" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
       - name: Configure Git
         run: |
-          git config --global user.name "sonjunhyun"
-          git config --global user.email "leonica0429@github.com"
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ steps.set_email.outputs.email }}"
 
       - name: Add GitLab remote
         run: |
