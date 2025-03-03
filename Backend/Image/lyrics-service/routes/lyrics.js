@@ -1,10 +1,10 @@
-//Image/lyrics-service/routes/lyrics.js
+// Image/lyrics-service/routes/lyrics.js
 
 import express from 'express';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
-import { Track } from '../models/Track.js'; // Track 모델 임포트 추가
-
+import { Track } from '../models/Track.js';
+import { createClient } from 'redis';
 
 dotenv.config();
 
@@ -13,21 +13,21 @@ const LRCLIB_API_BASE = process.env.LRCLIB_API_BASE;
 const MUSIXMATCH_API_KEY = process.env.MUSIXMATCH_API_KEY;
 const MUSIXMATCH_API_HOST = process.env.MUSIXMATCH_API_HOST || "musixmatch-lyrics-songs.p.rapidapi.com";
 
-/**
- * 문자열 정리 함수 (필요시 확장 가능)
- */
+// Redis 클라이언트 설정 (환경변수 또는 기본값 사용)
+const redisClient = createClient({
+  url: process.env.REDIS_URL || 'redis://localhost:6379'
+});
+redisClient.on('error', err => console.error('Redis Client Error', err));
+await redisClient.connect(); // 라우터 모듈 최상위에서 await 사용이 불가능하다면, 서버 초기화 시점에 연결하도록 변경
+
+// 문자열 정리 함수
 function cleanQueryString(str) {
   return str
-    .replace(/’/g, "'")          // 오른쪽 작은 따옴표를 일반 따옴표로 변환
-    .replace(/\s*\(.*$/, "")      // 공백과 '(' 이후의 모든 문자 제거
-    .trim();                     // 앞뒤 공백 제거
+    .replace(/’/g, "'")
+    .replace(/\s*\(.*$/, "")
+    .trim();
 }
 
-
-/**
- * LRCLIB의 /api/get 엔드포인트를 단일 시도로 호출합니다.
- * 404나 '찾을 수 없음' 응답이면 바로 null 반환합니다.
- */
 async function fetchLyricsLrcLib(song, artist, album = null, duration = null, retries = 1) {
   const cleanSong = cleanQueryString(song);
   const cleanArtist = cleanQueryString(artist);
@@ -48,18 +48,15 @@ async function fetchLyricsLrcLib(song, artist, album = null, duration = null, re
       console.warn("⚠️ [백엔드] LRCLIB API 404 응답: 트랙을 찾지 못했습니다.");
       return null;
     }
-
     if (!response.ok) {
       console.error(`❌ [백엔드] LRCLIB API 오류 (HTTP ${response.status})`);
       return null;
     }
-
     const data = await response.json();
     if (data.code === 404) {
       console.warn("⚠️ [백엔드] LRCLIB: 트랙을 찾지 못했습니다. (data.code === 404)");
       return null;
     }
-
     if (data.syncedLyrics) {
       return data.syncedLyrics;
     } else if (data.plainLyrics) {
@@ -71,12 +68,6 @@ async function fetchLyricsLrcLib(song, artist, album = null, duration = null, re
   return null;
 }
 
-/**
- * Musixmatch API를 단일 시도로 호출합니다.
- * (우리는 별도의 subtitles 엔드포인트를 사용하지 않습니다.)
- * 만약 API 응답이 리스트 형태(각 항목에 time 정보가 있는 경우)라면,
- * 각 항목을 "[mm:ss.xx] text" 형식의 문자열로 변환하여 반환합니다.
- */
 async function fetchLyricsMusixmatch(song, artist, retries = 1) {
   const cleanSong = cleanQueryString(song);
   const cleanArtist = cleanQueryString(artist);
@@ -99,28 +90,22 @@ async function fetchLyricsMusixmatch(song, artist, retries = 1) {
       console.warn("⚠️ [백엔드] Musixmatch API 404 응답: 가사를 찾지 못했습니다.");
       return null;
     }
-
     if (!response.ok) {
       console.error(`❌ [백엔드] Musixmatch API 오류 (HTTP ${response.status})`);
       return null;
     }
-
     const data = await response.json();
-    // 만약 API 응답이 리스트 형태라면 타임스탬프와 텍스트를 포맷합니다.
     if (Array.isArray(data) && data.length > 0) {
       const formatted = data.map(item => {
         const t = item.time || {};
         const minutes = t.minutes || 0;
         const seconds = t.seconds || 0;
         const hundredths = t.hundredths || 0;
-        // "mm:ss.xx" 형식으로 생성
         const formattedTime = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(hundredths).padStart(2, '0')}`;
         return `[${formattedTime}] ${item.text || ""}`;
       }).join('\n');
       return formatted;
     }
-
-    // 리스트 형태가 아니라면 기존 방식으로 처리
     const lyrics = data.message?.body?.lyrics?.lyrics_body;
     if (lyrics) {
       return lyrics;
@@ -139,41 +124,54 @@ router.get('/', async (req, res) => {
   const trackNameToSearch = englishTrackName || song;
   const artistNameToSearch = englishArtistName || artist;
 
+  // 캐시 키 생성: track_id가 있으면 이를 사용, 없으면 song과 artist로 생성
+  const cacheKey = track_id
+    ? `lyrics:${track_id}`
+    : `lyrics:${cleanQueryString(song)}:${cleanQueryString(artist)}`;
+
+  // 1. Redis 캐시 조회
+  try {
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      console.log("✅ [Redis] 캐시 히트 - Redis에서 가사를 가져왔습니다.");
+      return res.json(JSON.parse(cachedData));
+    }
+  } catch (err) {
+    console.error("❌ [Redis] 캐시 조회 중 오류:", err);
+  }
+
+  // 2. MongoDB 조회 (track_id 있는 경우)
   if (track_id) {
     try {
       const trackDoc = await Track.findOne({ track_id });
       if (trackDoc && trackDoc.plain_lyrics && trackDoc.parsed_lyrics) {
-        console.log("✅ DB에서 가사를 불러왔습니다.");
-        return res.json({
+        console.log("✅ [DB] MongoDB에서 가사를 불러왔습니다.");
+        const responseData = {
           song,
           artist,
           album,
           duration,
-          lyrics: trackDoc.parsed_lyrics, // parsed_lyrics 우선 사용
+          lyrics: trackDoc.parsed_lyrics,
           parsedLyrics: trackDoc.parsed_lyrics
-        });
+        };
+        // Redis에 저장 (TTL: 24시간)
+        await redisClient.setEx(cacheKey, 86400, JSON.stringify(responseData));
+        return res.json(responseData);
       }
     } catch (err) {
-      console.error("DB 조회 오류:", err);
+      console.error("❌ [DB] MongoDB 조회 오류:", err);
     }
-    // DB에 해당 데이터가 없으면 로그 출력
     console.log("DB에 저장된 가사가 없습니다. 외부 API로 가사를 불러옵니다.");
   }
 
-
+  // 3. 외부 API 호출 (LRCLIB 2회, 실패하면 Musixmatch 2회)
   let lyrics = null;
-
-  // LRCLIB API 2회 시도
   for (let i = 0; i < 2; i++) {
     console.log(`📡 [백엔드] LRCLIB API 시도 ${i + 1}번째`);
     lyrics = await fetchLyricsLrcLib(trackNameToSearch, artistNameToSearch, album, duration, 1);
     if (lyrics) break;
-    // 시도 간 1초 대기
     await new Promise(res => setTimeout(res, 1000));
   }
-
-
-  // LRCLIB에서 찾지 못하면 Musixmatch API 2회 시도
   if (!lyrics) {
     console.warn("⚠️ [백엔드] LRCLIB에서 가사를 찾지 못했습니다. Musixmatch API를 호출합니다.");
     for (let i = 0; i < 2; i++) {
@@ -183,17 +181,13 @@ router.get('/', async (req, res) => {
       await new Promise(res => setTimeout(res, 1000));
     }
   }
-
   if (!lyrics) {
     return res.status(404).json({
       error: "LRCLIB과 Musixmatch API 모두에서 가사를 찾을 수 없습니다."
     });
   }
 
-  // ─────────────────────────────────────────────
-  // [추가] 타임스탬프가 포함된 가사 문자열을 파싱하여,
-  // 백엔드 로그에는 타임스탬프와 텍스트 분리 결과를 남기고,
-  // 프론트엔드에는 타임스탬프를 제거한 순수 가사와 파싱 결과(parsedLyrics)를 함께 전달합니다.
+  // 가사 파싱 (타임스탬프 분리)
   if (typeof lyrics !== 'string') {
     console.error("❌ [백엔드] 가사 데이터 형식이 올바르지 않습니다:", lyrics);
     return res.status(500).json({
@@ -212,39 +206,44 @@ router.get('/', async (req, res) => {
   let plainLyrics;
   if (result.length > 0) {
     console.log("📝 [백엔드] 파싱된 가사:", result);
-    // 프론트엔드에는 타임스탬프 없이 텍스트만 전달
     plainLyrics = result.map(item => item.text).join("\n");
   } else {
     plainLyrics = lyrics;
   }
-  // ─────────────────────────────────────────────
 
-
-   // ★★ 가사를 DB에 업데이트(또는 저장)합니다.
-   if (track_id) {
+  // MongoDB에 저장/업데이트
+  if (track_id) {
     try {
-      // 기존 문서가 있으면 업데이트, 없으면 upsert (생성)
       await Track.findOneAndUpdate(
         { track_id },
         { plain_lyrics: plainLyrics, parsed_lyrics: result.length > 0 ? result : null },
         { upsert: true }
       );
-      console.log("✅ DB에 가사 저장/업데이트 완료.");
+      console.log("✅ [DB] DB에 가사 저장/업데이트 완료.");
     } catch (err) {
-      console.error("❌ DB 업데이트 오류:", err);
+      console.error("❌ [DB] MongoDB 업데이트 오류:", err);
     }
   }
 
-
-  console.log("📝 [백엔드] 외부에서 불러온 원본 가사:", lyrics);
-  return res.json({
+  const responseData = {
     song,
     artist,
     album,
     duration,
     lyrics: result.length > 0 ? plainLyrics : lyrics,
     parsedLyrics: result.length > 0 ? result : null
-  });
+  };
+
+  // 4. Redis에 저장 (TTL 24시간)
+  try {
+    await redisClient.setEx(cacheKey, 86400, JSON.stringify(responseData));
+    console.log("✅ [Redis] Redis에 가사 저장 완료.");
+  } catch (err) {
+    console.error("❌ [Redis] Redis 저장 오류:", err);
+  }
+
+  console.log("📝 [백엔드] 외부에서 불러온 원본 가사:", lyrics);
+  return res.json(responseData);
 });
 
 export default router;
