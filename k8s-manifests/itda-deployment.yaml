@@ -4,6 +4,8 @@ kind: Deployment
 metadata:
   name: itda-ui
   namespace: itda-fe-ns
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
   labels:
     app: itda-ui
 spec:
@@ -45,6 +47,8 @@ kind: Deployment
 metadata:
   name: itda-auth
   namespace: itda-be-ns
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
   labels:
     app: itda-auth
 spec:
@@ -127,6 +131,8 @@ kind: Deployment
 metadata:
   name: itda-search
   namespace: itda-be-ns
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
   labels:
     app: itda-search
 spec:
@@ -200,6 +206,8 @@ kind: Deployment
 metadata:
   name: itda-lyrics
   namespace: itda-be-ns
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
   labels:
     app: itda-lyrics
 spec:
@@ -272,6 +280,8 @@ kind: Deployment
 metadata:
   name: itda-translation
   namespace: itda-be-ns
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
   labels:
     app: itda-translation
 spec:
@@ -349,6 +359,8 @@ kind: Deployment
 metadata:
   name: itda-playlist
   namespace: itda-be-ns
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
   labels:
     app: itda-playlist
 spec:
