@@ -4,6 +4,7 @@ import express from 'express';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 import { Track } from '../models/Track.js'; // Track 모델 임포트 추가
+import { createClient } from 'redis';
 
 
 dotenv.config();
@@ -12,6 +13,15 @@ const router = express.Router();
 const LRCLIB_API_BASE = process.env.LRCLIB_API_BASE;
 const MUSIXMATCH_API_KEY = process.env.MUSIXMATCH_API_KEY;
 const MUSIXMATCH_API_HOST = process.env.MUSIXMATCH_API_HOST || "musixmatch-lyrics-songs.p.rapidapi.com";
+
+
+// Redis 클라이언트 설정 (환경변수 또는 기본값 사용)
+const redisClient = createClient({
+  url: process.env.REDIS_URL || 'redis://redis-service.itda-redis-ns.svc.cluster.local:6379'
+});
+redisClient.on('error', err => console.error('Redis Client Error', err));
+await redisClient.connect(); // 라우터 모듈 최상위에서 await 사용이 불가능하다면, 서버 초기화 시점에 연결하도록 변경
+
 
 /**
  * 문자열 정리 함수 (필요시 확장 가능)
@@ -139,24 +149,42 @@ router.get('/', async (req, res) => {
   const trackNameToSearch = englishTrackName || song;
   const artistNameToSearch = englishArtistName || artist;
 
+  // 캐시 키 생성: track_id가 있으면 이를 사용, 없으면 song과 artist로 생성
+  const cacheKey = track_id
+    ? `lyrics:${track_id}`
+    : `lyrics:${cleanQueryString(song)}:${cleanQueryString(artist)}`;
+
+  // 1. Redis 캐시 조회
+  try {
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      console.log("✅ [Redis] 캐시 히트 - Redis에서 가사를 가져왔습니다.");
+      return res.json(JSON.parse(cachedData));
+    }
+  } catch (err) {
+    console.error("❌ [Redis] 캐시 조회 중 오류:", err);
+  }
+
   if (track_id) {
     try {
       const trackDoc = await Track.findOne({ track_id });
       if (trackDoc && trackDoc.plain_lyrics && trackDoc.parsed_lyrics) {
-        console.log("✅ DB에서 가사를 불러왔습니다.");
-        return res.json({
+        console.log("✅ [DB] MongoDB에서 가사를 불러왔습니다.");
+        const responseData = {
           song,
           artist,
           album,
           duration,
-          lyrics: trackDoc.parsed_lyrics, // parsed_lyrics 우선 사용
+          lyrics: trackDoc.parsed_lyrics,
           parsedLyrics: trackDoc.parsed_lyrics
-        });
+        };
+        // Redis에 저장 (TTL: 24시간)
+        await redisClient.setEx(cacheKey, 86400, JSON.stringify(responseData));
+        return res.json(responseData);
       }
     } catch (err) {
-      console.error("DB 조회 오류:", err);
+      console.error("❌ [DB] MongoDB 조회 오류:", err);
     }
-    // DB에 해당 데이터가 없으면 로그 출력
     console.log("DB에 저장된 가사가 없습니다. 외부 API로 가사를 불러옵니다.");
   }
 
@@ -229,22 +257,32 @@ router.get('/', async (req, res) => {
         { plain_lyrics: plainLyrics, parsed_lyrics: result.length > 0 ? result : null },
         { upsert: true }
       );
-      console.log("✅ DB에 가사 저장/업데이트 완료.");
+      console.log("✅ [DB] MongoDB에 가사 저장/업데이트 완료..");
     } catch (err) {
-      console.error("❌ DB 업데이트 오류:", err);
+      console.error("❌ [DB] MongoDB 업데이트 오류:", err);
     }
   }
 
 
-  console.log("📝 [백엔드] 외부에서 불러온 원본 가사:", lyrics);
-  return res.json({
+  const responseData = {
     song,
     artist,
     album,
     duration,
     lyrics: result.length > 0 ? plainLyrics : lyrics,
     parsedLyrics: result.length > 0 ? result : null
-  });
+  };
+
+  // 4. Redis에 저장 (TTL 24시간)
+  try {
+    await redisClient.setEx(cacheKey, 86400, JSON.stringify(responseData));
+    console.log("✅ [Redis] Redis에 가사 저장 완료.");
+  } catch (err) {
+    console.error("❌ [Redis] Redis 저장 오류:", err);
+  }
+
+  console.log("📝 [백엔드] 외부에서 불러온 원본 가사:", lyrics);
+  return res.json(responseData);
 });
 
 export default router;

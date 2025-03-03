@@ -14,6 +14,20 @@ dotenv.config();
 
 const router = express.Router();
 
+// Redis 키 TTL 설정 (초 단위, 7일)
+const REDIS_CACHE_TTL = 60 * 60 * 24;
+
+// Redis 키 prefix 설정
+const REDIS_KEY_PREFIX = 'lyrics:translation:';
+
+// Redis 클라이언트 설정 (lyrics.js와 같은 방식)
+const redis = createClient({
+  url: process.env.REDIS_URL || 'redis://redis-service.itda-redis-ns.svc.cluster.local:6379'
+});
+redis.on('error', err => console.error('Redis Client Error', err));
+await redis.connect();
+
+
 // AWS Bedrock Client 설정 (region은 env에 있는 값 그대로 사용)
 const client = new BedrockRuntimeClient({
   region: process.env.AWS_REGION,
@@ -228,36 +242,99 @@ router.post('/', async (req, res) => {
   res.flushHeaders();
 
   try {
+    // 1. Redis에서 번역된 가사 검색 (트랙 ID가 있는 경우)
+    if (track_id) {
+      const redisKey = REDIS_KEY_PREFIX + track_id;
+      try {
+        const cachedTranslation = await redis.get(redisKey);
+        if (cachedTranslation) {
+          console.log("✅ Redis 캐시에서 번역된 가사를 찾았습니다.");
+          res.write("data: " + JSON.stringify({ stage: 'refined', translation: cachedTranslation }) + "\n\n");
+          return res.end();
+        } else {
+          console.log("ℹ️ Redis에 캐시된 번역 가사가 없습니다. DB 확인 중...");
+        }
+      } catch (redisErr) {
+        console.error("⚠️ Redis 접근 중 오류 발생:", redisErr);
+        // Redis 오류는 무시하고 계속 진행
+      }
+
+      // 2. MongoDB에서 번역된 가사 검색
+      try {
+        const trackDoc = await Track.findOne({ track_id });
+        if (trackDoc && trackDoc.lyrics_translation) {
+          console.log("✅ DB에 저장된 번역 가사가 있습니다.");
+          
+          // 찾은 번역 가사를 Redis에 캐싱
+          try {
+            await redis.set(redisKey, trackDoc.lyrics_translation, 'EX', REDIS_CACHE_TTL);
+            console.log("✅ DB의 번역 가사를 Redis에 캐싱했습니다.");
+          } catch (redisErr) {
+            console.error("⚠️ Redis 캐싱 중 오류 발생:", redisErr);
+            // Redis 오류는 무시하고 계속 진행
+          }
+          
+          res.write("data: " + JSON.stringify({ stage: 'refined', translation: trackDoc.lyrics_translation }) + "\n\n");
+          return res.end();
+        }
+        
+        // DB에 번역된 가사가 없다면 plain_lyrics를 번역에 사용합니다.
+        if (trackDoc && trackDoc.plain_lyrics) {
+          lyrics = trackDoc.plain_lyrics;
+          console.log("✅ DB에 번역된 가사가 없으므로, plain_lyrics를 번역에 사용합니다.");
+        }
+      } catch (dbErr) {
+        console.error("❌ DB 조회 오류:", dbErr);
+      }
+    }
+
+    // 여기까지 왔다면 Redis와 DB 모두에서 번역을 찾지 못한 상태
+    if (!lyrics) {
+      res.status(400).json({ error: "원문 가사를 제공하세요." });
+      return;
+    }
+
+    // 3. 새로운 번역 실행
     // AWS Translate가 이미 원본 언어를 감지하여 한국어면 번역을 건너뜁니다.
     const amazonResult = await translateWithAmazon(lyrics);
+    
     // 만약 번역이 필요 없다면, 원문을 그대로 반환
     if (amazonResult === lyrics) {
       console.log("입력 텍스트가 이미 한국어이므로, 번역 없이 원문 반환");
-      // ★★ DB 업데이트: track_id가 있다면 lyrics_translation도 원문 그대로 저장
+      
+      // DB 업데이트: track_id가 있다면 lyrics_translation도 원문 그대로 저장
       if (track_id) {
-        await Track.findOneAndUpdate(
-          { track_id },
-          { lyrics_translation: lyrics },
-          { upsert: true }
-        );
+        try {
+          await Track.findOneAndUpdate(
+            { track_id },
+            { lyrics_translation: lyrics },
+            { upsert: true }
+          );
+          console.log("✅ DB에 번역 없이 원문 가사를 저장했습니다.");
+          
+          // 원문은 Redis에 캐싱하지 않음 (Claude가 번역한 결과만 캐싱)
+          console.log("ℹ️ 원문이므로 Redis에 캐싱하지 않습니다.");
+        } catch (dbErr) {
+          console.error("❌ DB 업데이트 오류:", dbErr);
+        }
       }
       
-      res.write(`data: ${JSON.stringify({ stage: 'refined', translation: lyrics })}\n\n`);
+      res.write("data: " + JSON.stringify({ stage: 'refined', translation: lyrics }) + "\n\n");
       res.end();
       return;
     }
 
     // Amazon Translate 결과 SSE 전송
-    res.write(`data: ${JSON.stringify({ stage: 'amazon', translation: amazonResult })}\n\n`);
+    res.write("data: " + JSON.stringify({ stage: 'amazon', translation: amazonResult }) + "\n\n");
 
     // 2초 대기
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // "번역 보정 진행중..." 메시지 전송
-    res.write(`data: ${JSON.stringify({ stage: 'update', translation: '번역 보정 진행중...' })}\n\n`);
+    res.write("data: " + JSON.stringify({ stage: 'update', translation: '번역 보정 진행중...' }) + "\n\n");
 
     // 3. AI 번역(최종 번역) 진행 및 결과 전송
-    let refinedResult = await refineTranslation(lyrics, amazonResult);
+    let refinedResult = await refineTranslation(amazonResult);
 
     // fallback: Claude 거부 메시지 감지 시 Amazon Translate 결과 사용
     if (
@@ -277,20 +354,36 @@ router.post('/', async (req, res) => {
       refinedResult = amazonResult;
     }
 
-    // ★★ DB 업데이트: track_id가 있다면 lyrics_translation 필드 업데이트
+    // 최종 결과 저장 및 캐싱
     if (track_id) {
       try {
+        // MongoDB에 저장
         await Track.findOneAndUpdate(
           { track_id },
           { lyrics_translation: refinedResult },
           { upsert: true }
         );
-        console.log("DB에 번역 가사 저장/업데이트 완료.");
-      } catch (err) {
-        console.error("DB 업데이트 오류:", err);
+        console.log("✅ DB에 번역 가사 저장/업데이트 완료.");
+        
+        // Redis에 캐싱 - Claude가 번역한 결과만 캐싱
+        // Amazon Translate 결과와 다를 때만 (즉, Claude가 개선했을 때만) Redis에 저장
+        if (refinedResult !== amazonResult) {
+          try {
+            const redisKey = REDIS_KEY_PREFIX + track_id;
+            await redis.set(redisKey, refinedResult, 'EX', REDIS_CACHE_TTL);
+            console.log("✅ Claude 번역 결과를 Redis에 캐싱했습니다.");
+          } catch (redisErr) {
+            console.error("⚠️ Redis 캐싱 중 오류 발생:", redisErr);
+          }
+        } else {
+          console.log("ℹ️ Claude 번역이 Amazon과 동일하므로 Redis에 캐싱하지 않습니다.");
+        }
+      } catch (dbErr) {
+        console.error("❌ DB 업데이트 오류:", dbErr);
       }
     }
-    res.write(`data: ${JSON.stringify({ stage: 'refined', translation: refinedResult })}\n\n`);
+    
+    res.write("data: " + JSON.stringify({ stage: 'refined', translation: refinedResult }) + "\n\n");
     res.end();
   } catch (error) {
     res.write(`data: ${JSON.stringify({ stage: 'error', message: '번역 프로세스에 실패했습니다.' })}\n\n`);
