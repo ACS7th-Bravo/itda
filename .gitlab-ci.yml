@@ -13,6 +13,7 @@ variables:
 
 stages:
   - detect
+  - test
   - scan
   - build
   - push
@@ -27,27 +28,38 @@ detect-changes:
     paths:
       - changed_services.txt
 
-# 2) SonarQube 스캔 스테이지
+# 2) 테스트 및 커버리지 생성 스테이지
+run-tests:
+  stage: test
+  image: node:16-alpine
+  script:
+    - npm install
+    - npm run test -- --coverage
+  artifacts:
+    paths:
+      - coverage/lcov.info
+
+# 3) SonarQube 스캔 스테이지 (테스트 결과의 커버리지 리포트를 포함)
 sonarqube-scan:
   stage: scan
   image: sonarsource/sonar-scanner-cli:latest
-  needs: ["detect-changes"]
+  needs: ["detect-changes", "run-tests"]
   script: |
     set -e
     if [ ! -s changed_services.txt ]; then
       echo "No changes. Skipping SonarQube scan."
       exit 0
     fi
-
     sonar-scanner \
       -Dsonar.projectKey=$SONAR_PROJECT_KEY \
       -Dsonar.sources=. \
       -Dsonar.exclusions=**/harbor/** \
       -Dsonar.host.url=$SONAR_HOST_URL \
-      -Dsonar.token=$GITLAB_SONAR_TOKEN
+      -Dsonar.token=$GITLAB_SONAR_TOKEN \
+      -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
   allow_failure: true
 
-# 3) Docker 빌드 및 푸시 통합 스테이지
+# 4) Docker 빌드 및 푸시 통합 스테이지
 build-push:
   stage: push
   needs: ["detect-changes", "sonarqube-scan"]
