@@ -8,6 +8,8 @@
 	import { goto } from '$app/navigation';
 
 	const currentUser = getContext('currentUser');
+	$: userEmail = $currentUser ? $currentUser.email : '';
+
 	let userName = '';
 	if (currentUser && currentUser.name) {
 		userName = currentUser.name;

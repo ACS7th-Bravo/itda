@@ -1,4 +1,4 @@
----
+# 08-deploy-fe.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -7,7 +7,7 @@ metadata:
   labels:
     app: itda-ui
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: itda-ui
@@ -16,11 +16,11 @@ spec:
       labels:
         app: itda-ui
     spec:
-      imagePullSecrets:
+      imagePullSecrets:     # image pull 시 참조할 secret 추가
         - name: harbor-credential
       containers:
         - name: itda-ui
-          image: 192.168.2.140:443/frontend/itda-ui:latest
+          image: 192.168.2.140:443/frontend/itda-ui:4.1
           ports:
             - containerPort: 5174
           env:
@@ -34,8 +34,12 @@ spec:
                 secretKeyRef:
                   name: itda-ui.secret
                   key: VITE_BACKEND_URL
+          # 필요하다면 'extra_hosts' 대신 K8s DNS로 서비스명 해석
+          # command, args 등은 Dockerfile대로 기본 CMD 사용
 
 ---
+
+# 09-deploy-auth.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -53,11 +57,11 @@ spec:
       labels:
         app: itda-auth
     spec:
-      imagePullSecrets:
-        - name: harbor-credential
+      imagePullSecrets:     # image pull 시 참조할 secret 추가
+      - name: harbor-credential
       containers:
         - name: itda-auth
-          image: 192.168.2.140:443/backend/itda-auth:latest
+          image: 192.168.2.140:443/backend/itda-auth:4.1
           ports:
             - containerPort: 3001
           env:
@@ -96,8 +100,28 @@ spec:
                 secretKeyRef:
                   name: itda-auth.secret
                   key: MONGO_URI
+          # 🟢 Liveness Probe: 항상 정상 (애플리케이션이 살아있는지만 체크)
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3001
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
 
+          # 🟢 Readiness Probe: 필수 환경 변수 존재 여부 확인
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3001
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
 ---
+
+# 10-deploy-search.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -115,11 +139,11 @@ spec:
       labels:
         app: itda-search
     spec:
-      imagePullSecrets:
-        - name: harbor-credential
+      imagePullSecrets:     # image pull 시 참조할 secret 추가
+      - name: harbor-credential
       containers:
         - name: itda-search
-          image: 192.168.2.140:443/backend/itda-search:latest
+          image: 192.168.2.140:443/backend/itda-search:4.1
           ports:
             - containerPort: 3002
           env:
@@ -148,8 +172,29 @@ spec:
                 secretKeyRef:
                   name: itda-search.secret
                   key: MONGO_URI
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3002
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+
+          # 🟢 Readiness Probe: 필수 환경 변수 존재 여부 확인
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3002
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+
 
 ---
+
+# 11-deploy-lyrics.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -167,11 +212,11 @@ spec:
       labels:
         app: itda-lyrics
     spec:
-      imagePullSecrets:
-        - name: harbor-credential
+      imagePullSecrets:     # image pull 시 참조할 secret 추가
+      - name: harbor-credential
       containers:
         - name: itda-lyrics
-          image: 192.168.2.140:443/backend/itda-lyrics:latest
+          image: 192.168.2.140:443/backend/itda-lyrics:4.1
           ports:
             - containerPort: 3003
           env:
@@ -200,8 +245,28 @@ spec:
                 secretKeyRef:
                   name: itda-lyrics.secret
                   key: MONGO_URI
+          # 🟢 Liveness Probe: 항상 정상 (애플리케이션이 살아있는지만 체크)
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3003
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
 
+          # 🟢 Readiness Probe: 필수 환경 변수 존재 여부 확인
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3003
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
 ---
+
+# 12-deploy-translation.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -219,11 +284,11 @@ spec:
       labels:
         app: itda-translation
     spec:
-      imagePullSecrets:
-        - name: harbor-credential
+      imagePullSecrets:     # image pull 시 참조할 secret 추가
+      - name: harbor-credential
       containers:
         - name: itda-translation
-          image: 192.168.2.140:443/backend/itda-translation:latest
+          image: 192.168.2.140:443/backend/itda-translation:4.1
           ports:
             - containerPort: 3004
           env:
@@ -257,8 +322,28 @@ spec:
                 secretKeyRef:
                   name: itda-translation.secret
                   key: INFERENCE_PROFILE_ARN
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3004
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+
+          # 🟢 Readiness Probe: 필수 환경 변수 존재 여부 확인
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3004
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
 
 ---
+
+# 13-deploy-playlist.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -276,11 +361,11 @@ spec:
       labels:
         app: itda-playlist
     spec:
-      imagePullSecrets:
-        - name: harbor-credential
+      imagePullSecrets:     # image pull 시 참조할 secret 추가
+      - name: harbor-credential
       containers:
         - name: itda-playlist
-          image: 192.168.2.140:443/backend/itda-playlist:latest
+          image: 192.168.2.140:443/backend/itda-playlist:4.1
           ports:
             - containerPort: 3005
           env:
@@ -294,27 +379,21 @@ spec:
                 secretKeyRef:
                   name: itda-playlist.secret
                   key: MONGO_URI
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3005
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
 
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: itda-redis
-  namespace: itda-redis-ns
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: itda-redis
-  template:
-    metadata:
-      labels:
-        app: itda-redis
-    spec:
-      containers:
-        - name: itda-redis
-          image: 192.168.2.140:443/db/itda-redis:1.0
-          ports:
-            - containerPort: 6379
-      imagePullSecrets:
-        - name: harbor-credential
+          # 🟢 Readiness Probe: 필수 환경 변수 존재 여부 확인
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3005
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3

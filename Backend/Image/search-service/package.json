@@ -2,7 +2,7 @@
   "name": "search-service",
   "version": "1.0.0",
   "description": "Handles music search via Spotify and YouTube APIs",
-  "type": "module",
+  "type": "module", 
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -12,7 +12,6 @@
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "mongoose": "^7.0.0",
-    "node-fetch": "^3.3.1",
-    "redis": "^4.7.0"
+    "node-fetch": "^3.3.1"
   }
 }

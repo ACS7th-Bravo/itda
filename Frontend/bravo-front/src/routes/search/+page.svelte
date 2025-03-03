@@ -26,7 +26,7 @@
 
 		try {
 			const res = await fetch(
-				`/api/spotify/search?q=${encodeURIComponent(get(searchQuery))}`,
+				`${backendUrl}/api/spotify/search?q=${encodeURIComponent(get(searchQuery))}`,
 				{
 					headers: {
 						'Content-Type': 'application/json', // ✅ JSON 요청

@@ -99,10 +99,10 @@
 
 <style>
 	.playlist-detail-container {
-		max-width: 800px;
-		margin: 0 auto;
+		max-width: 100%;
 		padding: 20px;
 		color: white;
+		text-align: left;
 	}
 	h1 {
 		text-align: center;
