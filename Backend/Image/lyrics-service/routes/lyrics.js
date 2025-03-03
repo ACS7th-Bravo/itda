@@ -15,7 +15,7 @@ const MUSIXMATCH_API_HOST = process.env.MUSIXMATCH_API_HOST || "musixmatch-lyric
 
 // Redis 클라이언트 설정 (환경변수 또는 기본값 사용)
 const redisClient = createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379'
+  url: process.env.REDIS_URL || 'redis://redis-service.itda-redis-ns.svc.cluster.local:6379'
 });
 redisClient.on('error', err => console.error('Redis Client Error', err));
 await redisClient.connect(); // 라우터 모듈 최상위에서 await 사용이 불가능하다면, 서버 초기화 시점에 연결하도록 변경
