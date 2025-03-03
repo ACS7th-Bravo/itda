@@ -25,6 +25,13 @@ spec:
           image: 192.168.2.140:443/frontend/itda-ui:latest
           ports:
             - containerPort: 5174
+          resources:
+            requests:
+              cpu: "100m"      # defaultRequest 값
+              memory: "128Mi"  # defaultRequest 값
+            limits:
+              cpu: "500m"      # max 값
+              memory: "512Mi"  # max 값
           env:
             - name: PORT
               valueFrom:
@@ -68,6 +75,13 @@ spec:
           image: 192.168.2.140:443/backend/itda-auth:latest
           ports:
             - containerPort: 3001
+          resources:
+            requests:
+              cpu: "50m"       # defaultRequest 값
+              memory: "32Mi"    # defaultRequest 값
+            limits:
+              cpu: "200m"      # max 값
+              memory: "256Mi"  # max 값
           env:
             - name: PORT
               valueFrom:
@@ -152,6 +166,13 @@ spec:
           image: 192.168.2.140:443/backend/itda-search:latest
           ports:
             - containerPort: 3002
+          resources:
+            requests:
+              cpu: "200m"      # defaultRequest 값
+              memory: "128Mi"  # defaultRequest 값
+            limits:
+              cpu: "500m"      # max 값
+              memory: "256Mi"  # max 값
           env:
             - name: PORT
               valueFrom:
@@ -227,6 +248,13 @@ spec:
           image: 192.168.2.140:443/backend/itda-lyrics:latest
           ports:
             - containerPort: 3003
+          resources:
+            requests:
+              cpu: "200m"     # defaultRequest 값
+              memory: "128Mi"   # defaultRequest 값
+            limits:
+              cpu: "500m"     # max 값
+              memory: "512Mi" # max 값
           env:
             - name: PORT
               valueFrom:
@@ -301,6 +329,13 @@ spec:
           image: 192.168.2.140:443/backend/itda-translation:latest
           ports:
             - containerPort: 3004
+          resources:
+            requests:
+              cpu: "200m"      # defaultRequest 값
+              memory: "128Mi"  # defaultRequest 값
+            limits:
+              cpu: "500m"      # max 값
+              memory: "512Mi"  # max 값
           env:
             - name: PORT
               valueFrom:
@@ -380,6 +415,13 @@ spec:
           image: 192.168.2.140:443/backend/itda-playlist:latest
           ports:
             - containerPort: 3005
+          resources:
+            requests:
+              cpu: "50m"       # defaultRequest 값
+              memory: "128Mi"    # defaultRequest 값
+            limits:
+              cpu: "200m"      # max 값
+              memory: "256Mi"  # max 값
           env:
             - name: PORT
               valueFrom:
@@ -409,3 +451,26 @@ spec:
             periodSeconds: 15
             timeoutSeconds: 10
             failureThreshold: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: itda-redis
+  namespace: itda-redis-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: itda-redis
+  template:
+    metadata:
+      labels:
+        app: itda-redis
+    spec:
+      containers:
+        - name: itda-redis
+          image: 192.168.2.140:443/db/itda-redis:1.0
+          ports:
+            - containerPort: 6379
+      imagePullSecrets:
+        - name: harbor-credential
