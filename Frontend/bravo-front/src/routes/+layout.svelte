@@ -6,7 +6,7 @@
 	import { onMount, setContext } from 'svelte'; //2025.02.14 DB 이메일 추출출, onmount랑 합침침
 	import { writable, get } from 'svelte/store';
 	import { page } from '$app/stores'; 
-	import { youtubeApiKey } from '$lib/youtubeStore.js';
+	// import { youtubeApiKey } from '$lib/youtubeStore.js';
 	import { searchResults } from '$lib/searchStore.js'; 
 	import { playTrack } from '$lib/trackPlayer.js';
 	import { goto } from '$app/navigation'; //곡 상세페이지로 넘어가는 함수
