@@ -78,7 +78,7 @@ spec:
           resources:
             requests:
               cpu: "50m"       # defaultRequest 값
-              memory: "32Mi"    # defaultRequest 값
+              memory: "128Mi"    # defaultRequest 값
             limits:
               cpu: "200m"      # max 값
               memory: "256Mi"  # max 값
