@@ -30,60 +30,13 @@ detect-changes:
 # 2) SonarQube 스캔 스테이지
 sonarqube-scan:
   stage: scan
-  image: node:18-alpine
+  image: sonarsource/sonar-scanner-cli:latest
+  needs: ["detect-changes"]
   script: |
     set -e
-
     if [ ! -s changed_services.txt ]; then
       echo "No changes. Skipping SonarQube scan."
       exit 0
-    fi
-
-    # 프론트엔드 테스트 및 커버리지 리포트 생성
-    if grep -q "^frontend:" changed_services.txt; then
-      echo "Running tests for frontend..."
-      cd Frontend/bravo-front
-      npm install
-      npm run test -- --coverage
-      if [ -f coverage/lcov.info ]; then
-        FRONTEND_COVERAGE="$(pwd)/coverage/lcov.info"
-      else
-        echo "Frontend coverage report not found!"
-      fi
-      cd ../../
-    fi
-
-    # 백엔드 테스트 및 커버리지 리포트 생성
-    BACKEND_COVERAGE=""
-    for service in $(grep "^backend:" changed_services.txt | cut -d':' -f2); do
-      echo "Running tests for backend service: $service"
-      cd Backend/Image/$service
-      npm install
-      npm run test -- --coverage
-      if [ -f coverage/lcov.info ]; then
-        COVERAGE_PATH="$(pwd)/coverage/lcov.info"
-        if [ -z "$BACKEND_COVERAGE" ]; then
-          BACKEND_COVERAGE="$COVERAGE_PATH"
-        else
-          BACKEND_COVERAGE="$BACKEND_COVERAGE,$COVERAGE_PATH"
-        fi
-      else
-        echo "Coverage report for $service not found!"
-      fi
-      cd ../../..
-    done
-
-    echo "Frontend coverage: $FRONTEND_COVERAGE"
-    echo "Backend coverage: $BACKEND_COVERAGE"
-
-    # 커버리지 리포트 경로 결합
-    COVERAGE_ARGS=""
-    if [ -n "$FRONTEND_COVERAGE" ] && [ -n "$BACKEND_COVERAGE" ]; then
-      COVERAGE_ARGS="$FRONTEND_COVERAGE,$BACKEND_COVERAGE"
-    elif [ -n "$FRONTEND_COVERAGE" ]; then
-      COVERAGE_ARGS="$FRONTEND_COVERAGE"
-    elif [ -n "$BACKEND_COVERAGE" ]; then
-      COVERAGE_ARGS="$BACKEND_COVERAGE"
     fi
 
     sonar-scanner \
@@ -91,10 +44,8 @@ sonarqube-scan:
       -Dsonar.sources=. \
       -Dsonar.exclusions=**/harbor/** \
       -Dsonar.host.url=$SONAR_HOST_URL \
-      -Dsonar.token=$GITLAB_SONAR_TOKEN \
-      -Dsonar.javascript.lcov.reportPaths="$COVERAGE_ARGS"
+      -Dsonar.token=$GITLAB_SONAR_TOKEN
   allow_failure: true
-
 
 # 3) Docker 빌드 및 푸시 통합 스테이지
 build-push:
