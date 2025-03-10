@@ -42,7 +42,7 @@ jobs:
 
       - name: Add GitLab remote
         run: |
-          git remote add gitlab https://oauth2:${{ secrets.GITLAB_TOKEN }}@http://3.39.94.135:8081/bravo/itda.git
+          git remote add gitlab http://oauth2:${{ secrets.GITLAB_TOKEN }}@3.39.94.135:8081/bravo/itda.git
           git fetch gitlab || echo "GitLab repository is empty"
 
       - name: Push to GitLab
