@@ -46,7 +46,7 @@ sonarqube-scan:
       -Dsonar.sources=. \
       -Dsonar.host.url=$SONAR_HOST_URL \
       -Dsonar.login=$GITLAB_SONAR_TOKEN
-  allow_failure: true
+  allow_failure: false
 
 # 3) Docker 빌드
 build:
@@ -56,14 +56,19 @@ build:
   script: |
     set -e
 
-    # 1. AWS CLI 설치 (docker:latest는 AWS CLI가 기본 설치되어 있지 않음)
-    #    - docker:latest가 Debian/Ubuntu 계열 기반이라고 가정하고 apt 사용
-    #    - 만약 Alpine 기반이면 apk add 명령어 사용 필요
-    apt-get update -y
-    apt-get install -y python3 python3-pip
-    pip3 install awscli
+    # AWS CLI 설치 (Alpine 기반에서는 apk 사용)
+    if [ -f /etc/alpine-release ]; then
+      echo "Alpine detected, installing awscli via apk"
+      apk add --no-cache python3 py3-pip
+      pip3 install awscli
+    else
+      echo "Non-Alpine system, using apt-get"
+      apt-get update -y
+      apt-get install -y python3 python3-pip
+      pip3 install awscli
+    fi
 
-    # 2. 변경사항이 없으면 빌드 스킵
+    # 변경사항 없으면 빌드 스킵
     if [ ! -s changed_services.txt ]; then
       echo "No changes detected. Skipping build."
       exit 0
@@ -72,11 +77,11 @@ build:
     echo "=== Changed services content ==="
     cat changed_services.txt
 
-    # 3. ECR 로그인
+    # ECR 로그인 (푸시 전에 한번 해두면 로컬 캐시에 로그인 정보가 남습니다)
     aws ecr get-login-password --region "$AWS_REGION" \
       | docker login --username AWS --password-stdin "$REGISTRY"
 
-    # 4. 여기서는 이미지만 빌드하고, 푸시는 다음 스테이지에서 진행
+    # 변경된 서비스별로 이미지를 빌드
     while read line; do
       TYPE=$(echo "$line" | cut -d':' -f1)
       NAME=$(echo "$line" | cut -d':' -f2)
@@ -102,7 +107,6 @@ build:
         docker build -t "$FULL_IMAGE_NAME" "$SERVICE_DIR"
       fi
     done < changed_services.txt
-
 
 # 4) Docker 푸시
 push:
