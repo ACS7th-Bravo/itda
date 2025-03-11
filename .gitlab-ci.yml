@@ -56,19 +56,18 @@ build:
   script: |
     set -e
 
-    # AWS CLI 설치 (Alpine 기반에서는 apk 사용)
+    # 1. AWS CLI 설치
     if [ -f /etc/alpine-release ]; then
       echo "Alpine detected, installing awscli via apk"
-      apk add --no-cache python3 py3-pip
-      pip3 install awscli
+      apk add --no-cache aws-cli
     else
-      echo "Non-Alpine system, using apt-get"
+      echo "Non-Alpine system, installing awscli via apt + pip"
       apt-get update -y
       apt-get install -y python3 python3-pip
       pip3 install awscli
     fi
 
-    # 변경사항 없으면 빌드 스킵
+    # 2. 변경사항 없으면 빌드 스킵
     if [ ! -s changed_services.txt ]; then
       echo "No changes detected. Skipping build."
       exit 0
@@ -77,11 +76,11 @@ build:
     echo "=== Changed services content ==="
     cat changed_services.txt
 
-    # ECR 로그인 (푸시 전에 한번 해두면 로컬 캐시에 로그인 정보가 남습니다)
+    # 3. ECR 로그인
     aws ecr get-login-password --region "$AWS_REGION" \
       | docker login --username AWS --password-stdin "$REGISTRY"
 
-    # 변경된 서비스별로 이미지를 빌드
+    # 4. 변경된 서비스별로 이미지를 빌드
     while read line; do
       TYPE=$(echo "$line" | cut -d':' -f1)
       NAME=$(echo "$line" | cut -d':' -f2)
