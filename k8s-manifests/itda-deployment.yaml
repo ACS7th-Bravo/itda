@@ -22,7 +22,7 @@ spec:
         - name: harbor-credential
       containers:
         - name: itda-ui
-          image: 192.168.2.140:443/frontend/itda-ui:latest
+          image: 192.168.2.140:443/frontend/itda-ui:11.47
           ports:
             - containerPort: 5174
           resources:
@@ -72,7 +72,7 @@ spec:
       - name: harbor-credential
       containers:
         - name: itda-auth
-          image: 192.168.2.140:443/backend/itda-auth:latest
+          image: 192.168.2.140:443/backend/itda-auth:11.47
           ports:
             - containerPort: 3001
           resources:
@@ -163,7 +163,7 @@ spec:
       - name: harbor-credential
       containers:
         - name: itda-search
-          image: 192.168.2.140:443/backend/itda-search:latest
+          image: 192.168.2.140:443/backend/itda-search:11.47
           ports:
             - containerPort: 3002
           resources:
@@ -245,7 +245,7 @@ spec:
       - name: harbor-credential
       containers:
         - name: itda-lyrics
-          image: 192.168.2.140:443/backend/itda-lyrics:latest
+          image: 192.168.2.140:443/backend/itda-lyrics:11.47
           ports:
             - containerPort: 3003
           resources:
@@ -326,7 +326,7 @@ spec:
       - name: harbor-credential
       containers:
         - name: itda-translation
-          image: 192.168.2.140:443/backend/itda-translation:latest
+          image: 192.168.2.140:443/backend/itda-translation:11.47
           ports:
             - containerPort: 3004
           resources:
@@ -412,7 +412,7 @@ spec:
       - name: harbor-credential
       containers:
         - name: itda-playlist
-          image: 192.168.2.140:443/backend/itda-playlist:latest
+          image: 192.168.2.140:443/backend/itda-playlist:11.47
           ports:
             - containerPort: 3005
           resources:
