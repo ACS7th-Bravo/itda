@@ -1,15 +1,14 @@
 image: docker:latest
 
-# EC2에서 로컬 Docker를 사용하므로 Docker-in-Docker 불필요
 variables:
   DOCKER_HOST: "unix:///var/run/docker.sock"
   DOCKER_TLS_CERTDIR: ""
 
-  # SonarQube 관련 (프로젝트별로 수정)
+  # SonarQube 관련
   SONAR_HOST_URL: "http://3.39.94.135:9000"
   SONAR_PROJECT_KEY: "bravo-itda"
 
-  # ECR 주소 (예시: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com)
+  # ECR 주소
   REGISTRY: "655088038759.dkr.ecr.ap-northeast-2.amazonaws.com"
 
 stages:
@@ -35,17 +34,36 @@ sonarqube-scan:
   needs: ["detect-changes"]
   script: |
     set -e
+
     # 변경사항 없으면 스캔 스킵
     if [ ! -s changed_services.txt ]; then
-      echo "No changes. Skipping SonarQube scan."
+      echo "변경 사항이 없어 SonarQube 분석을 건너뜁니다."
       exit 0
     fi
 
+    # SonarQube 분석 실행
     sonar-scanner \
       -Dsonar.projectKey=$SONAR_PROJECT_KEY \
       -Dsonar.sources=. \
       -Dsonar.host.url=$SONAR_HOST_URL \
       -Dsonar.login=$GITLAB_SONAR_TOKEN
+
+    # $? : 직전 명령(sonar-scanner)의 종료 코드
+    # 0이면 성공, 그 외는 실패
+    if [ $? -eq 0 ]; then
+      echo "SonarQube 분석 성공"
+      # SonarQube 분석 '성공' Slack 알림
+      curl -X POST -H "Content-type: application/json" \
+        --data '{"text": "SonarQube 코드 분석에 성공했습니다.\n커밋 해시: '"$CI_COMMIT_SHORT_SHA"'"}' \
+        "https://hooks.slack.com/services/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"
+    else
+      echo "SonarQube 분석 실패"
+      # SonarQube 분석 '실패' Slack 알림
+      curl -X POST -H "Content-type: application/json" \
+        --data '{"text": "SonarQube 코드 분석에 실패했습니다.\n커밋 해시: '"$CI_COMMIT_SHORT_SHA"'"}' \
+        "https://hooks.slack.com/services/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"
+      exit 1
+    fi
   allow_failure: false
 
 # 3) Docker 빌드
@@ -59,31 +77,31 @@ build:
   script: |
     set -e
 
-    # 1. AWS CLI 설치
+    # AWS CLI 설치
     if [ -f /etc/alpine-release ]; then
-      echo "Alpine detected, installing awscli via apk"
+      echo "Alpine 기반, apk로 awscli 설치"
       apk add --no-cache aws-cli
     else
-      echo "Non-Alpine system, installing awscli via apt + pip"
+      echo "Debian/Ubuntu 기반, apt + pip로 awscli 설치"
       apt-get update -y
       apt-get install -y python3 python3-pip
       pip3 install awscli
     fi
 
-    # 2. 변경사항 없으면 빌드 스킵
+    # 변경사항 없으면 빌드 스킵
     if [ ! -s changed_services.txt ]; then
-      echo "No changes detected. Skipping build."
+      echo "변경 사항이 없어 Docker 빌드를 건너뜁니다."
       exit 0
     fi
 
-    echo "=== Changed services content ==="
+    echo "=== 변경된 서비스 목록 ==="
     cat changed_services.txt
 
-    # 3. ECR 로그인
+    # ECR 로그인
     aws ecr get-login-password --region "$AWS_REGION" \
       | docker login --username AWS --password-stdin "$REGISTRY"
 
-    # 4. 변경된 서비스별로 이미지를 빌드
+    # 변경된 서비스별로 Docker 이미지 빌드
     while read line; do
       TYPE=$(echo "$line" | cut -d':' -f1)
       NAME=$(echo "$line" | cut -d':' -f2)
@@ -97,7 +115,7 @@ build:
         IMAGE_TAG="$CI_COMMIT_SHORT_SHA"
         FULL_IMAGE_NAME="$REGISTRY/itda-$IMAGE_TAG_BASE:$IMAGE_TAG"
 
-        echo "Building backend image for $NAME -> $FULL_IMAGE_NAME"
+        echo "빌드 시작: $FULL_IMAGE_NAME"
         docker build -t "$FULL_IMAGE_NAME" "$SERVICE_DIR"
 
       elif [ "$TYPE" = "frontend" ]; then
@@ -105,7 +123,7 @@ build:
         IMAGE_TAG="$CI_COMMIT_SHORT_SHA"
         FULL_IMAGE_NAME="$REGISTRY/itda-ui:$IMAGE_TAG"
 
-        echo "Building frontend image -> $FULL_IMAGE_NAME"
+        echo "빌드 시작: $FULL_IMAGE_NAME"
         docker build -t "$FULL_IMAGE_NAME" "$SERVICE_DIR"
       fi
     done < changed_services.txt
@@ -117,24 +135,31 @@ push:
   image: docker:latest
   script: |
     set -e
+
+    # 변경 사항이 없으면 푸시 스킵
     if [ ! -s changed_services.txt ]; then
-      echo "No changes detected. Skipping push."
+      echo "변경 사항이 없어 Docker 푸시를 건너뜁니다."
       exit 0
     fi
 
+    # AWS CLI 설치
     if [ -f /etc/alpine-release ]; then
-      echo "Alpine detected, installing awscli via apk"
+      echo "Alpine 기반, apk로 awscli 설치"
       apk add --no-cache aws-cli
     else
-      echo "Non-Alpine system, installing awscli via apt + pip"
+      echo "Debian/Ubuntu 기반, apt + pip로 awscli 설치"
       apt-get update -y
       apt-get install -y python3 python3-pip
       pip3 install awscli
     fi
 
-    echo "=== Docker login to ECR ==="
+    echo "=== ECR 로그인 ==="
     aws ecr get-login-password --region "$AWS_REGION" \
       | docker login --username AWS --password-stdin "$REGISTRY"
+
+    # 모든 이미지 푸시가 끝나면 Slack 알림 보낼 수 있도록
+    # 푸시 과정에서 하나라도 실패하면 exit 1
+    PUSH_FAILED=false
 
     while read line; do
       TYPE=$(echo "$line" | cut -d':' -f1)
@@ -148,28 +173,46 @@ push:
         IMAGE_TAG="$CI_COMMIT_SHORT_SHA"
         FULL_IMAGE_NAME="$REGISTRY/itda-$IMAGE_TAG_BASE:$IMAGE_TAG"
 
-        echo "Pushing image with commit tag: $FULL_IMAGE_NAME..."
-        docker push "$FULL_IMAGE_NAME"
+        echo "푸시 시작: $FULL_IMAGE_NAME"
+        if ! docker push "$FULL_IMAGE_NAME"; then
+          PUSH_FAILED=true
+        fi
 
-        # 추가: "latest" 태그도 함께 업데이트
         LATEST_IMAGE="$REGISTRY/itda-$IMAGE_TAG_BASE:latest"
-        echo "Tagging as latest: $LATEST_IMAGE"
         docker tag "$FULL_IMAGE_NAME" "$LATEST_IMAGE"
-        echo "Pushing image with latest tag: $LATEST_IMAGE..."
-        docker push "$LATEST_IMAGE"
+        echo "푸시 시작: $LATEST_IMAGE"
+        if ! docker push "$LATEST_IMAGE"; then
+          PUSH_FAILED=true
+        fi
 
       elif [ "$TYPE" = "frontend" ]; then
         IMAGE_TAG="$CI_COMMIT_SHORT_SHA"
         FULL_IMAGE_NAME="$REGISTRY/itda-ui:$IMAGE_TAG"
 
-        echo "Pushing image with commit tag: $FULL_IMAGE_NAME..."
-        docker push "$FULL_IMAGE_NAME"
+        echo "푸시 시작: $FULL_IMAGE_NAME"
+        if ! docker push "$FULL_IMAGE_NAME"; then
+          PUSH_FAILED=true
+        fi
 
-        # 추가: "latest" 태그도 업데이트
         LATEST_IMAGE="$REGISTRY/itda-ui:latest"
-        echo "Tagging as latest: $LATEST_IMAGE"
         docker tag "$FULL_IMAGE_NAME" "$LATEST_IMAGE"
-        echo "Pushing image with latest tag: $LATEST_IMAGE..."
-        docker push "$LATEST_IMAGE"
+        echo "푸시 시작: $LATEST_IMAGE"
+        if ! docker push "$LATEST_IMAGE"; then
+          PUSH_FAILED=true
+        fi
       fi
     done < changed_services.txt
+
+    # 모든 푸시가 끝난 후 결과에 따라 Slack 알림
+    if [ "$PUSH_FAILED" = true ]; then
+      echo "ECR 이미지 푸시 실패"
+      curl -X POST -H "Content-type: application/json" \
+        --data '{"text": "ECR 이미지 푸시에 실패했습니다.\n커밋 해시: '"$CI_COMMIT_SHORT_SHA"'"}' \
+        "https://hooks.slack.com/services/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"
+      exit 1
+    else
+      echo "ECR 이미지 푸시 성공"
+      curl -X POST -H "Content-type: application/json" \
+        --data '{"text": "ECR 이미지 푸시에 성공했습니다.\n커밋 해시: '"$CI_COMMIT_SHORT_SHA"'"}' \
+        "https://hooks.slack.com/services/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"
+    fi
