@@ -1,15 +1,16 @@
 image: docker:latest
 
-services:
-  - name: docker:dind
-    command: ["--insecure-registry=192.168.2.140:443"]
-
+# EC2에서 로컬 Docker를 사용하므로 Docker-in-Docker 불필요
 variables:
-  DOCKER_TLS_CERTDIR: ""  # docker:dind 사용 시 TLS 인증 비활성화
-  DOCKER_HOST: tcp://docker:2375
-  REGISTRY: "192.168.2.140:443"
-  SONAR_HOST_URL: "http://192.168.2.140:9000"
+  DOCKER_HOST: "unix:///var/run/docker.sock"
+  DOCKER_TLS_CERTDIR: ""
+
+  # SonarQube 관련 (프로젝트별로 수정)
+  SONAR_HOST_URL: "http://3.39.94.135:9000"
   SONAR_PROJECT_KEY: "bravo-itda"
+
+  # ECR 주소 (예시: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com)
+  REGISTRY: "655088038759.dkr.ecr.ap-northeast-2.amazonaws.com"
 
 stages:
   - detect
@@ -17,7 +18,7 @@ stages:
   - build
   - push
 
-# 1) 변경 사항 감지 스테이지
+# 1) 변경 사항 감지
 detect-changes:
   stage: detect
   script: |
@@ -27,13 +28,14 @@ detect-changes:
     paths:
       - changed_services.txt
 
-# 2) SonarQube 스캔 스테이지
+# 2) SonarQube 스캔
 sonarqube-scan:
   stage: scan
   image: sonarsource/sonar-scanner-cli:latest
   needs: ["detect-changes"]
   script: |
     set -e
+    # 변경사항 없으면 스캔 스킵
     if [ ! -s changed_services.txt ]; then
       echo "No changes. Skipping SonarQube scan."
       exit 0
@@ -44,50 +46,108 @@ sonarqube-scan:
       -Dsonar.sources=. \
       -Dsonar.exclusions=**/harbor/** \
       -Dsonar.host.url=$SONAR_HOST_URL \
-      -Dsonar.token=$GITLAB_SONAR_TOKEN
+      -Dsonar.login=$GITLAB_SONAR_TOKEN
   allow_failure: true
 
-# 3) Docker 빌드 및 푸시 통합 스테이지
-build-push:
-  stage: push
+# 3) Docker 빌드
+build:
+  stage: build
   needs: ["detect-changes", "sonarqube-scan"]
   image: docker:latest
   script: |
     set -e
+    # 변경사항 없으면 빌드 스킵
     if [ ! -s changed_services.txt ]; then
-      echo "No changes detected. Skipping build and push."
+      echo "No changes detected. Skipping build."
       exit 0
     fi
 
     echo "=== Changed services content ==="
     cat changed_services.txt
 
-    echo "=== Docker login to Harbor ==="
-    echo "$HARBOR_PASSWORD" | docker login -u "$HARBOR_USERNAME" --password-stdin "$REGISTRY"
+    # ECR 로그인 (푸시 전에 한번 해두면 로컬 캐시에 로그인 정보가 남습니다)
+    aws ecr get-login-password --region "$AWS_REGION" \
+      | docker login --username AWS --password-stdin "$REGISTRY"
 
+    # 여기서는 이미지만 빌드하고, 푸시는 다음 스테이지에서 진행
+    # 필요하면 Docker build 결과물을 GitLab Artifacts로 저장 불가 (이미지 파일 자체는 불가능)
     while read line; do
-      # 예상 형식: TYPE:FOLDER (예: backend:search-service 또는 frontend:Frontend/bravo-front/)
       TYPE=$(echo "$line" | cut -d':' -f1)
       NAME=$(echo "$line" | cut -d':' -f2)
-      
+
       if [ "$TYPE" = "backend" ]; then
         SERVICE_DIR="Backend/Image/$NAME"
-        # 이미지 태그는 "-service" 접미어 제거 (예: "search-service" -> "search")
-        IMAGE_TAG="$NAME"
+        IMAGE_TAG_BASE="$NAME"
         if echo "$NAME" | grep -q -- '-service$'; then
-          IMAGE_TAG=${NAME%-service}
+          IMAGE_TAG_BASE=${NAME%-service}
         fi
-        IMAGE_NAME="$REGISTRY/backend/itda-$IMAGE_TAG:latest"
-        echo "Building backend image for $NAME (tag: $IMAGE_TAG) from $SERVICE_DIR..."
-        docker build -t "$IMAGE_NAME" "$SERVICE_DIR"
-        echo "Pushing $IMAGE_NAME..."
-        docker push "$IMAGE_NAME"
+        # 커밋 해시를 태그로
+        IMAGE_TAG="$CI_COMMIT_SHORT_SHA"
+        FULL_IMAGE_NAME="$REGISTRY/itda-$IMAGE_TAG_BASE:$IMAGE_TAG"
+
+        echo "Building backend image for $NAME -> $FULL_IMAGE_NAME"
+        docker build -t "$FULL_IMAGE_NAME" "$SERVICE_DIR"
+
       elif [ "$TYPE" = "frontend" ]; then
         SERVICE_DIR="Frontend/bravo-front"
-        IMAGE_NAME="$REGISTRY/frontend/itda-ui:latest"
-        echo "Building frontend image from $SERVICE_DIR..."
-        docker build -t "$IMAGE_NAME" "$SERVICE_DIR"
-        echo "Pushing $IMAGE_NAME..."
-        docker push "$IMAGE_NAME"
+        IMAGE_TAG="$CI_COMMIT_SHORT_SHA"
+        FULL_IMAGE_NAME="$REGISTRY/itda-ui:$IMAGE_TAG"
+
+        echo "Building frontend image -> $FULL_IMAGE_NAME"
+        docker build -t "$FULL_IMAGE_NAME" "$SERVICE_DIR"
+      fi
+    done < changed_services.txt
+
+# 4) Docker 푸시
+push:
+  stage: push
+  needs: ["build"]
+  image: docker:latest
+  script: |
+    set -e
+    if [ ! -s changed_services.txt ]; then
+      echo "No changes detected. Skipping push."
+      exit 0
+    fi
+
+    echo "=== Docker login to ECR ==="
+    aws ecr get-login-password --region "$AWS_REGION" \
+      | docker login --username AWS --password-stdin "$REGISTRY"
+
+    while read line; do
+      TYPE=$(echo "$line" | cut -d':' -f1)
+      NAME=$(echo "$line" | cut -d':' -f2)
+
+      if [ "$TYPE" = "backend" ]; then
+        IMAGE_TAG_BASE="$NAME"
+        if echo "$NAME" | grep -q -- '-service$'; then
+          IMAGE_TAG_BASE=${NAME%-service}
+        fi
+        IMAGE_TAG="$CI_COMMIT_SHORT_SHA"
+        FULL_IMAGE_NAME="$REGISTRY/itda-$IMAGE_TAG_BASE:$IMAGE_TAG"
+
+        echo "Pushing image with commit tag: $FULL_IMAGE_NAME..."
+        docker push "$FULL_IMAGE_NAME"
+
+        # 추가: "latest" 태그도 함께 업데이트
+        LATEST_IMAGE="$REGISTRY/itda-$IMAGE_TAG_BASE:latest"
+        echo "Tagging as latest: $LATEST_IMAGE"
+        docker tag "$FULL_IMAGE_NAME" "$LATEST_IMAGE"
+        echo "Pushing image with latest tag: $LATEST_IMAGE..."
+        docker push "$LATEST_IMAGE"
+
+      elif [ "$TYPE" = "frontend" ]; then
+        IMAGE_TAG="$CI_COMMIT_SHORT_SHA"
+        FULL_IMAGE_NAME="$REGISTRY/itda-ui:$IMAGE_TAG"
+
+        echo "Pushing image with commit tag: $FULL_IMAGE_NAME..."
+        docker push "$FULL_IMAGE_NAME"
+
+        # 추가: "latest" 태그도 업데이트
+        LATEST_IMAGE="$REGISTRY/itda-ui:latest"
+        echo "Tagging as latest: $LATEST_IMAGE"
+        docker tag "$FULL_IMAGE_NAME" "$LATEST_IMAGE"
+        echo "Pushing image with latest tag: $LATEST_IMAGE..."
+        docker push "$LATEST_IMAGE"
       fi
     done < changed_services.txt
