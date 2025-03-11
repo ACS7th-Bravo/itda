@@ -122,6 +122,16 @@ push:
       exit 0
     fi
 
+    if [ -f /etc/alpine-release ]; then
+      echo "Alpine detected, installing awscli via apk"
+      apk add --no-cache aws-cli
+    else
+      echo "Non-Alpine system, installing awscli via apt + pip"
+      apt-get update -y
+      apt-get install -y python3 python3-pip
+      pip3 install awscli
+    fi
+
     echo "=== Docker login to ECR ==="
     aws ecr get-login-password --region "$AWS_REGION" \
       | docker login --username AWS --password-stdin "$REGISTRY"
