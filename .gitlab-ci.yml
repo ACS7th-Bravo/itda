@@ -53,6 +53,9 @@ build:
   stage: build
   needs: ["detect-changes", "sonarqube-scan"]
   image: docker:latest
+  artifacts:
+    paths:
+      - changed_services.txt
   script: |
     set -e
 
