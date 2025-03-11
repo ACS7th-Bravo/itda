@@ -1,0 +1,45 @@
+{
+	"name": "bravo-front",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"start": "node build",
+		"prepare": "svelte-kit sync || echo ''",
+		"format": "prettier --write .",
+		"lint": "prettier --check . && eslint ."
+	},
+	"devDependencies": {
+		"@eslint/compat": "^1.2.5",
+		"@eslint/js": "^9.18.0",
+		"@sveltejs/adapter-auto": "^4.0.0",
+		"@sveltejs/kit": "^2.16.0",
+		"@sveltejs/vite-plugin-svelte": "^5.0.0",
+		"eslint": "^9.18.0",
+		"eslint-config-prettier": "^10.0.1",
+		"eslint-plugin-svelte": "^2.46.1",
+		"globals": "^15.14.0",
+		"prettier": "^3.4.2",
+		"prettier-plugin-svelte": "^3.3.3",
+		"svelte": "^5.0.0",
+		"vite": "^6.0.0"
+	},
+	"dependencies": {
+		"@studio-freight/lenis": "^1.0.42",
+		"@sveltejs/adapter-node": "^5.2.12",
+		"clsx": "^2.1.1",
+		"colorthief": "^2.6.0",
+		"gsap": "^3.12.7",
+		"imagesloaded": "^5.0.0",
+		"jwt-decode": "^4.0.0",
+		"lenis": "^1.2.3",
+		"scrolltrigger": "^1.0.1",
+		"simplex-noise": "^4.0.3",
+		"svelte-inview": "^4.0.4",
+		"svelte-motion": "^0.12.2",
+		"tailwind-merge": "^3.0.2"
+	}
+}
