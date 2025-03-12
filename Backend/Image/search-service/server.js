@@ -24,6 +24,7 @@ const SPOTIFY_CLIENT_ID = readSecret('spotify_client_id');
 const SPOTIFY_CLIENT_SECRET = readSecret('spotify_client_secret');
 const YOUTUBE_API_KEYS = readSecret('youtube_api_keys');
 const MONGO_URI = readSecret('mongo_uri');
+const REDIS_URL = readSecret('redis_url'); 
 const PORT = 3002;
 
 // 라우트 연결
@@ -46,7 +47,7 @@ app.get('/healthz', (req, res) => {
 // 🟢 Readiness Probe: 애플리케이션이 특정 리소스(예: 환경 변수)를 정상적으로 읽을 수 있는지 확인
 app.get('/ready', (req, res) => {
   console.log(`${new Date().toISOString()} - 🔹 Search Readiness: `);
-  if (SPOTIFY_CLIENT_ID && SPOTIFY_CLIENT_SECRET && YOUTUBE_API_KEYS && MONGO_URI) {
+  if (SPOTIFY_CLIENT_ID && SPOTIFY_CLIENT_SECRET && YOUTUBE_API_KEYS && REDIS_URL) {
     res.status(200).send('Search READY');
     console.log(`${new Date().toISOString()} - 🔹 Search Readiness: READY 😋\n`);
   } else {

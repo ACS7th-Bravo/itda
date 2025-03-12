@@ -8,6 +8,8 @@ import fs from 'fs';
 import path from 'path';
 import mongoose from 'mongoose';
 import { User } from '../models/User.js';
+import fs from 'fs';
+import path from 'path';
 
 // secrets 파일에서 값을 읽어오는 함수
 function readSecret(secretName) {

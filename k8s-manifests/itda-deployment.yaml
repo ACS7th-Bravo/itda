@@ -49,7 +49,6 @@ spec:
             volumeAttributes:
               secretProviderClass: "aws-secrets-itda-ui"
 
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -81,9 +80,9 @@ spec:
               cpu: "50m"
               memory: "128Mi"
             limits:
-              cpu: "200m"
-              memory: "256Mi"
-          env:
+              cpu: "200m"      # max 값
+              memory: "256Mi"  # max 값
+            env:
             - name: PORT
               valueFrom:
                 configMapKeyRef:
@@ -100,6 +99,15 @@ spec:
             readOnly: true
             volumeAttributes:
               secretProviderClass: "aws-secrets-itda-auth"
+          # 🟢 Liveness Probe: 항상 정상 (애플리케이션이 살아있는지만 체크)
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3001
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
 
 ---
 apiVersion: apps/v1
@@ -153,6 +161,25 @@ spec:
             readOnly: true
             volumeAttributes:
               secretProviderClass: "aws-secrets-itda-search"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3002
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+
+          # 🟢 Readiness Probe: 필수 환경 변수 존재 여부 확인
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3002
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+
 
 ---
 apiVersion: apps/v1
@@ -206,7 +233,24 @@ spec:
             readOnly: true
             volumeAttributes:
               secretProviderClass: "aws-secrets-itda-lyrics"
-
+          # 🟢 Liveness Probe: 항상 정상 (애플리케이션이 살아있는지만 체크)
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3003
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+          # 🟢 Readiness Probe: 필수 환경 변수 존재 여부 확인
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3003
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -259,6 +303,23 @@ spec:
             readOnly: true
             volumeAttributes:
               secretProviderClass: "aws-secrets-itda-translation"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3004
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+          # 🟢 Readiness Probe: 필수 환경 변수 존재 여부 확인
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3004
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
 
 ---
 apiVersion: apps/v1
@@ -312,6 +373,27 @@ spec:
             readOnly: true
             volumeAttributes:
               secretProviderClass: "aws-secrets-itda-playlist"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3004
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+          # 🟢 Readiness Probe: 필수 환경 변수 존재 여부 확인
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3004
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+          volumeMounts:
+            - name: aws-secrets
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
 
 ---
 apiVersion: apps/v1
