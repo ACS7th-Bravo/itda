@@ -1,5 +1,8 @@
 {
   "dependencies": {
     "simplex-noise": "^4.0.3"
+  },
+  "devDependencies": {
+    "svelte-preprocess": "^6.0.3"
   }
 }
