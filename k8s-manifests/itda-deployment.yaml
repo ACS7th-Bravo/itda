@@ -1,4 +1,3 @@
-# 08-deploy-fe.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -18,37 +17,40 @@ spec:
       labels:
         app: itda-ui
     spec:
-      imagePullSecrets:     # image pull 시 참조할 secret 추가
-        - name: harbor-credential
+      serviceAccountName: itda-secrets-access
       containers:
         - name: itda-ui
-          image: 192.168.2.140:443/frontend/itda-ui:11.47
+          # 여기서 GIT_COMMIT_HASH라는 플레이스홀더를 사용합니다.
+          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-ui:${GIT_COMMIT_HASH}
           ports:
             - containerPort: 5174
           resources:
             requests:
-              cpu: "100m"      # defaultRequest 값
-              memory: "128Mi"  # defaultRequest 값
+              cpu: "100m"
+              memory: "128Mi"
             limits:
-              cpu: "500m"      # max 값
-              memory: "512Mi"  # max 값
+              cpu: "500m"
+              memory: "512Mi"
           env:
             - name: PORT
               valueFrom:
                 configMapKeyRef:
                   name: itda-ui.conf
                   key: PORT
-            - name: VITE_BACKEND_URL
-              valueFrom:
-                secretKeyRef:
-                  name: itda-ui.secret
-                  key: VITE_BACKEND_URL
-          # 필요하다면 'extra_hosts' 대신 K8s DNS로 서비스명 해석
-          # command, args 등은 Dockerfile대로 기본 CMD 사용
+          volumeMounts:
+            - name: aws-secrets
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+      volumes:
+        - name: aws-secrets
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "aws-secrets-itda-ui"
+
 
 ---
-
-# 09-deploy-auth.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -68,78 +70,38 @@ spec:
       labels:
         app: itda-auth
     spec:
-      imagePullSecrets:     # image pull 시 참조할 secret 추가
-      - name: harbor-credential
+      serviceAccountName: itda-secrets-access
       containers:
         - name: itda-auth
-          image: 192.168.2.140:443/backend/itda-auth:11.47
+          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-auth:${GIT_COMMIT_HASH}
           ports:
             - containerPort: 3001
           resources:
             requests:
-              cpu: "50m"       # defaultRequest 값
-              memory: "128Mi"    # defaultRequest 값
+              cpu: "50m"
+              memory: "128Mi"
             limits:
-              cpu: "200m"      # max 값
-              memory: "256Mi"  # max 값
+              cpu: "200m"
+              memory: "256Mi"
           env:
             - name: PORT
               valueFrom:
                 configMapKeyRef:
                   name: itda-auth.conf
                   key: PORT
-            - name: GOOGLE_CLIENT_ID
-              valueFrom:
-                secretKeyRef:
-                  name: itda-auth.secret
-                  key: GOOGLE_CLIENT_ID
-            - name: GOOGLE_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: itda-auth.secret
-                  key: GOOGLE_CLIENT_SECRET
-            - name: GOOGLE_REDIRECT_URI
-              valueFrom:
-                secretKeyRef:
-                  name: itda-auth.secret
-                  key: GOOGLE_REDIRECT_URI
-            - name: JWT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: itda-auth.secret
-                  key: JWT_SECRET
-            - name: FRONTEND_URL
-              valueFrom:
-                secretKeyRef:
-                  name: itda-auth.secret
-                  key: FRONTEND_URL
-            - name: MONGO_URI
-              valueFrom:
-                secretKeyRef:
-                  name: itda-auth.secret
-                  key: MONGO_URI
-          # 🟢 Liveness Probe: 항상 정상 (애플리케이션이 살아있는지만 체크)
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: 3001
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 3
+          volumeMounts:
+            - name: aws-secrets
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+      volumes:
+        - name: aws-secrets
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "aws-secrets-itda-auth"
 
-          # 🟢 Readiness Probe: 필수 환경 변수 존재 여부 확인
-          readinessProbe:
-            httpGet:
-              path: /ready
-              port: 3001
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 3
 ---
-
-# 10-deploy-search.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -159,69 +121,40 @@ spec:
       labels:
         app: itda-search
     spec:
-      imagePullSecrets:     # image pull 시 참조할 secret 추가
-      - name: harbor-credential
+      serviceAccountName: itda-secrets-access
+      imagePullSecrets:
+        - name: aws-ecr-creds
       containers:
         - name: itda-search
-          image: 192.168.2.140:443/backend/itda-search:11.47
+          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-search:${GIT_COMMIT_HASH}
           ports:
             - containerPort: 3002
           resources:
             requests:
-              cpu: "200m"      # defaultRequest 값
-              memory: "128Mi"  # defaultRequest 값
+              cpu: "200m"
+              memory: "128Mi"
             limits:
-              cpu: "500m"      # max 값
-              memory: "256Mi"  # max 값
+              cpu: "500m"
+              memory: "256Mi"
           env:
             - name: PORT
               valueFrom:
                 configMapKeyRef:
                   name: itda-search.conf
                   key: PORT
-            - name: SPOTIFY_CLIENT_ID
-              valueFrom:
-                secretKeyRef:
-                  name: itda-search.secret
-                  key: SPOTIFY_CLIENT_ID
-            - name: SPOTIFY_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: itda-search.secret
-                  key: SPOTIFY_CLIENT_SECRET
-            - name: YOUTUBE_API_KEYS
-              valueFrom:
-                secretKeyRef:
-                  name: itda-search.secret
-                  key: YOUTUBE_API_KEYS
-            - name: MONGO_URI
-              valueFrom:
-                secretKeyRef:
-                  name: itda-search.secret
-                  key: MONGO_URI
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: 3002
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 3
-
-          # 🟢 Readiness Probe: 필수 환경 변수 존재 여부 확인
-          readinessProbe:
-            httpGet:
-              path: /ready
-              port: 3002
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 3
-
+          volumeMounts:
+            - name: aws-secrets
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+      volumes:
+        - name: aws-secrets
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "aws-secrets-itda-search"
 
 ---
-
-# 11-deploy-lyrics.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -241,68 +174,40 @@ spec:
       labels:
         app: itda-lyrics
     spec:
-      imagePullSecrets:     # image pull 시 참조할 secret 추가
-      - name: harbor-credential
+      serviceAccountName: itda-secrets-access
+      imagePullSecrets:
+        - name: aws-ecr-creds
       containers:
         - name: itda-lyrics
-          image: 192.168.2.140:443/backend/itda-lyrics:11.47
+          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-lyrics:${GIT_COMMIT_HASH}
           ports:
             - containerPort: 3003
           resources:
             requests:
-              cpu: "200m"     # defaultRequest 값
-              memory: "128Mi"   # defaultRequest 값
+              cpu: "200m"
+              memory: "128Mi"
             limits:
-              cpu: "500m"     # max 값
-              memory: "512Mi" # max 값
+              cpu: "500m"
+              memory: "512Mi"
           env:
             - name: PORT
               valueFrom:
                 configMapKeyRef:
                   name: itda-lyrics.conf
                   key: PORT
-            - name: LRCLIB_API_BASE
-              valueFrom:
-                secretKeyRef:
-                  name: itda-lyrics.secret
-                  key: LRCLIB_API_BASE
-            - name: MUSIXMATCH_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: itda-lyrics.secret
-                  key: MUSIXMATCH_API_KEY
-            - name: MUSIXMATCH_API_HOST
-              valueFrom:
-                secretKeyRef:
-                  name: itda-lyrics.secret
-                  key: MUSIXMATCH_API_HOST
-            - name: MONGO_URI
-              valueFrom:
-                secretKeyRef:
-                  name: itda-lyrics.secret
-                  key: MONGO_URI
-          # 🟢 Liveness Probe: 항상 정상 (애플리케이션이 살아있는지만 체크)
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: 3003
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 3
+          volumeMounts:
+            - name: aws-secrets
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+      volumes:
+        - name: aws-secrets
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "aws-secrets-itda-lyrics"
 
-          # 🟢 Readiness Probe: 필수 환경 변수 존재 여부 확인
-          readinessProbe:
-            httpGet:
-              path: /ready
-              port: 3003
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 3
 ---
-
-# 12-deploy-translation.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -322,73 +227,40 @@ spec:
       labels:
         app: itda-translation
     spec:
-      imagePullSecrets:     # image pull 시 참조할 secret 추가
-      - name: harbor-credential
+      serviceAccountName: itda-secrets-access
+      imagePullSecrets:
+        - name: aws-ecr-creds
       containers:
         - name: itda-translation
-          image: 192.168.2.140:443/backend/itda-translation:11.47
+          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-translation:${GIT_COMMIT_HASH}
           ports:
             - containerPort: 3004
           resources:
             requests:
-              cpu: "200m"      # defaultRequest 값
-              memory: "128Mi"  # defaultRequest 값
+              cpu: "200m"
+              memory: "128Mi"
             limits:
-              cpu: "500m"      # max 값
-              memory: "512Mi"  # max 값
+              cpu: "500m"
+              memory: "512Mi"
           env:
             - name: PORT
               valueFrom:
                 configMapKeyRef:
                   name: itda-translating.conf
                   key: PORT
-            - name: MONGO_URI
-              valueFrom:
-                secretKeyRef:
-                  name: itda-translation.secret
-                  key: MONGO_URI
-            - name: AWS_ACCESS_KEY_ID
-              valueFrom:
-                secretKeyRef:
-                  name: itda-translation.secret
-                  key: AWS_ACCESS_KEY_ID
-            - name: AWS_SECRET_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: itda-translation.secret
-                  key: AWS_SECRET_ACCESS_KEY
-            - name: AWS_REGION
-              valueFrom:
-                secretKeyRef:
-                  name: itda-translation.secret
-                  key: AWS_REGION
-            - name: INFERENCE_PROFILE_ARN
-              valueFrom:
-                secretKeyRef:
-                  name: itda-translation.secret
-                  key: INFERENCE_PROFILE_ARN
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: 3004
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 3
-
-          # 🟢 Readiness Probe: 필수 환경 변수 존재 여부 확인
-          readinessProbe:
-            httpGet:
-              path: /ready
-              port: 3004
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 3
+          volumeMounts:
+            - name: aws-secrets
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+      volumes:
+        - name: aws-secrets
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "aws-secrets-itda-translation"
 
 ---
-
-# 13-deploy-playlist.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -408,55 +280,44 @@ spec:
       labels:
         app: itda-playlist
     spec:
-      imagePullSecrets:     # image pull 시 참조할 secret 추가
-      - name: harbor-credential
+      serviceAccountName: itda-secrets-access
+      imagePullSecrets:
+        - name: aws-ecr-creds
       containers:
         - name: itda-playlist
-          image: 192.168.2.140:443/backend/itda-playlist:11.47
+          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-playlist:${GIT_COMMIT_HASH}
           ports:
             - containerPort: 3005
           resources:
             requests:
-              cpu: "50m"       # defaultRequest 값
-              memory: "128Mi"    # defaultRequest 값
+              cpu: "50m"
+              memory: "128Mi"
             limits:
-              cpu: "200m"      # max 값
-              memory: "256Mi"  # max 값
+              cpu: "200m"
+              memory: "256Mi"
           env:
             - name: PORT
               valueFrom:
                 configMapKeyRef:
                   name: itda-playlist.conf
                   key: PORT
-            - name: MONGO_URI
-              valueFrom:
-                secretKeyRef:
-                  name: itda-playlist.secret
-                  key: MONGO_URI
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: 3005
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 3
+          volumeMounts:
+            - name: aws-secrets
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+      volumes:
+        - name: aws-secrets
+          csi:
+            driver: secrets-store.csi.k
 
-          # 🟢 Readiness Probe: 필수 환경 변수 존재 여부 확인
-          readinessProbe:
-            httpGet:
-              path: /ready
-              port: 3005
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 3
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: itda-redis
   namespace: itda-redis-ns
+  labels:
+    app: itda-redis
 spec:
   replicas: 1
   selector:
@@ -467,10 +328,10 @@ spec:
       labels:
         app: itda-redis
     spec:
+      imagePullSecrets:
+        - name: aws-ecr-creds
       containers:
         - name: itda-redis
-          image: 192.168.2.140:443/db/itda-redis:1.0
+          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-redis:1.0
           ports:
             - containerPort: 6379
-      imagePullSecrets:
-        - name: harbor-credential

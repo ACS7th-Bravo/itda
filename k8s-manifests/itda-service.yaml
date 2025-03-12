@@ -1,21 +1,6 @@
-# ---
-# apiVersion: v1
-# kind: Service
-# metadata:
-#   name: itda-ui
-#   namespace: itda-fe-ns
-# spec:
-#   selector:
-#     app: itda-ui
-#   type: ClusterIP
-#   ports:
-#     - name: http
-#       protocol: TCP
-#       port: 5174
-#       targetPort: 5174
-
----
-# 14-svc-fe.yaml
+###############################################################################
+# 1) 프론트엔드 (itda-ui) Service
+###############################################################################
 apiVersion: v1
 kind: Service
 metadata:
@@ -24,8 +9,7 @@ metadata:
 spec:
   selector:
     app: itda-ui
-  type: LoadBalancer  # 외부 공개용
-  loadBalancerIP: "192.168.56.128"  # 고정할 외부 IP
+  type: ClusterIP               # LoadBalancer -> ClusterIP로 변경
   ports:
     - name: http
       protocol: TCP
@@ -33,7 +17,9 @@ spec:
       targetPort: 5174
 
 ---
-
+###############################################################################
+# 2) 백엔드 Services (그대로 ClusterIP)
+###############################################################################
 # 15-svc-auth.yaml
 apiVersion: v1
 kind: Service
@@ -51,7 +37,6 @@ spec:
       targetPort: 3001
 
 ---
-
 # 16-svc-search.yaml
 apiVersion: v1
 kind: Service
@@ -69,7 +54,6 @@ spec:
       targetPort: 3002
 
 ---
-
 # 17-svc-lyrics.yaml
 apiVersion: v1
 kind: Service
@@ -87,7 +71,6 @@ spec:
       targetPort: 3003
 
 ---
-
 # 18-svc-translation.yaml
 apiVersion: v1
 kind: Service
@@ -105,7 +88,6 @@ spec:
       targetPort: 3004
 
 ---
-
 # 19-svc-playlist.yaml
 apiVersion: v1
 kind: Service
@@ -122,8 +104,10 @@ spec:
       port: 3005
       targetPort: 3005
 
-
 ---
+###############################################################################
+# 3) Redis (NodePort)
+###############################################################################
 apiVersion: v1
 kind: Service
 metadata:
