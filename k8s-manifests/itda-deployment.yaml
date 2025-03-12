@@ -73,7 +73,7 @@ spec:
       serviceAccountName: itda-secrets-access
       containers:
         - name: itda-auth
-          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-auth:a8f8dbf3
+          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-auth:f4d1f57b
           ports:
             - containerPort: 3001
           resources:
