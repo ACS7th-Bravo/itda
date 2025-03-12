@@ -2,16 +2,27 @@
 
 import express from 'express';
 import fetch from 'node-fetch';
-import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
 import { Track } from '../models/Track.js'; // Track 모델 임포트 추가
 
 
-dotenv.config();
+// 🔹 AWS Secrets Manager에서 환경 변수 읽는 함수
+function readSecret(secretName) {
+  const secretPath = path.join('/mnt/secrets-store', secretName);
+  try {
+    return fs.readFileSync(secretPath, 'utf8').trim();
+  } catch (err) {
+    console.error(`❌ Error reading secret ${secretName} from ${secretPath}:`, err);
+    throw err;
+  }
+}
+
+const LRCLIB_API_BASE = readSecret('lrclib_api_base');
+const MUSIXMATCH_API_KEY = readSecret('musixmatch_api_key');
+const MUSIXMATCH_API_HOST = readSecret('musixmatch_api_host') || "musixmatch-lyrics-songs.p.rapidapi.com";
 
 const router = express.Router();
-const LRCLIB_API_BASE = process.env.LRCLIB_API_BASE;
-const MUSIXMATCH_API_KEY = process.env.MUSIXMATCH_API_KEY;
-const MUSIXMATCH_API_HOST = process.env.MUSIXMATCH_API_HOST || "musixmatch-lyrics-songs.p.rapidapi.com";
 
 /**
  * 문자열 정리 함수 (필요시 확장 가능)

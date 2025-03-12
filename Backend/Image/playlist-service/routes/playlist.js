@@ -3,7 +3,22 @@
 import express from 'express';
 import { Playlist } from '../models/Playlist.js';
 import { User } from '../models/User.js';
+import fs from 'fs';
+import path from 'path';
 
+
+// 🔹 AWS Secrets Manager에서 환경 변수 읽는 함수
+function readSecret(secretName) {
+  const secretPath = path.join('/mnt/secrets-store', secretName);
+  try {
+    return fs.readFileSync(secretPath, 'utf8').trim();
+  } catch (err) {
+    console.error(`❌ Error reading secret ${secretName} from ${secretPath}:`, err);
+    throw err;
+  }
+}
+
+const MONGO_URI = readSecret('mongo_uri'); // MongoDB 연결 URI
 const router = express.Router();
 
 // POST 요청을 통한 플레이리스트 그룹 생성

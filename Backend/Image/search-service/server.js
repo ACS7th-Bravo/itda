@@ -1,12 +1,30 @@
 //Image/search-service/server.js
 
 import express from 'express';
-import dotenv from 'dotenv';
 import mongoose from 'mongoose';
-dotenv.config();
+import fs from 'fs';
+import path from 'path';
 
 const app = express();
 app.use(express.json());
+
+// 🔹 AWS Secrets Manager에서 환경 변수 읽는 함수
+function readSecret(secretName) {
+  const secretPath = path.join('/mnt/secrets-store', secretName);
+  try {
+    return fs.readFileSync(secretPath, 'utf8').trim();
+  } catch (err) {
+    console.error(`❌ Error reading secret ${secretName} from ${secretPath}:`, err);
+    throw err;
+  }
+}
+
+// ✅ AWS Secrets Manager에서 필요한 환경 변수 불러오기
+const SPOTIFY_CLIENT_ID = readSecret('spotify_client_id');
+const SPOTIFY_CLIENT_SECRET = readSecret('spotify_client_secret');
+const YOUTUBE_API_KEYS = readSecret('youtube_api_keys');
+const MONGO_URI = readSecret('mongo_uri');
+const PORT = 3002;
 
 // 라우트 연결
 import spotifyRouter from './routes/spotify.js';
@@ -28,7 +46,7 @@ app.get('/healthz', (req, res) => {
 // 🟢 Readiness Probe: 애플리케이션이 특정 리소스(예: 환경 변수)를 정상적으로 읽을 수 있는지 확인
 app.get('/ready', (req, res) => {
   console.log(`${new Date().toISOString()} - 🔹 Search Readiness: `);
-  if (process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET && process.env.YOUTUBE_API_KEYS && process.env.MONGO_URI) {
+  if (SPOTIFY_CLIENT_ID && SPOTIFY_CLIENT_SECRET && YOUTUBE_API_KEYS && MONGO_URI) {
     res.status(200).send('Search READY');
     console.log(`${new Date().toISOString()} - 🔹 Search Readiness: READY 😋\n`);
   } else {
@@ -39,11 +57,10 @@ app.get('/ready', (req, res) => {
 
 
 // DB 연결 (필요하다면)
-mongoose.connect(process.env.MONGO_URI, {})
+mongoose.connect(MONGO_URI, {})
   .then(() => console.log('Search DB connected'))
   .catch(err => console.error(err));
 
-const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {
   console.log(`Search Service running on port ${PORT}`);
 });

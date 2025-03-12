@@ -19,7 +19,7 @@ RUN echo "VITE_FRONTEND_PORT=${VITE_FRONTEND_PORT}" > .env.production && \
     echo "VITE_LYRICS_API_URL=${VITE_LYRICS_API_URL}" >> .env.production && \
     echo "VITE_TRANSLATION_API_URL=${VITE_TRANSLATION_API_URL}" >> .env.production && \
     echo "VITE_PLAYLIST_API_URL=${VITE_PLAYLIST_API_URL}" >> .env.production && \
-    echo "VITE_BACKEND_URL=http://192.168.56.192" >> .env.production
+    echo "VITE_BACKEND_URL=https://it-da.site2" >> .env.production
 
 # package.json, package-lock.json 복사 및 의존성 설치
 COPY package*.json ./

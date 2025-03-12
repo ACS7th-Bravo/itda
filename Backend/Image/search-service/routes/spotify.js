@@ -1,16 +1,24 @@
 //Image/search-service/routes/spotify.js
 
-
 import express from "express";
 import fetch from "node-fetch";
-import dotenv from "dotenv";
-
-dotenv.config();
+import fs from "fs";
+import path from "path";
 
 const router = express.Router();
+// 🔹 AWS Secrets Manager에서 환경 변수 읽는 함수
+function readSecret(secretName) {
+  const secretPath = path.join('/mnt/secrets-store', secretName);
+  try {
+    return fs.readFileSync(secretPath, 'utf8').trim();
+  } catch (err) {
+    console.error(`❌ Error reading secret ${secretName} from ${secretPath}:`, err);
+    throw err;
+  }
+}
 
-const clientId = process.env.SPOTIFY_CLIENT_ID;
-const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+const clientId = readSecret('spotify_client_id');
+const clientSecret = readSecret('spotify_client_secret');
 const TOKEN_LIFETIME = 3600; // 1시간 (초 단위)
 
 let accessToken = null;
@@ -30,6 +38,7 @@ async function fetchAccessToken() {
     },
     body: body.toString(),
   });
+
   const data = await response.json();
   if (data.access_token) {
     accessToken = data.access_token;
@@ -47,7 +56,8 @@ async function getAccessToken() {
   }
   return accessToken;
 }
-// 준현 수정
+
+
 // ✅ Spotify API에서 한글 & 영어 데이터 가져오는 함수
 async function fetchSpotifyData(query, locale = null) {
   const token = await getAccessToken();
@@ -67,7 +77,6 @@ async function fetchSpotifyData(query, locale = null) {
 }
 
 // 🎯 Spotify 검색 API (한글 & 영어 데이터를 따로 가져옴)
-// 준현 수정 - 한글/영어 조회 별도로 되게 수정
 router.get("/search", async (req, res) => {
   const query = req.query.q;
   if (!query) {

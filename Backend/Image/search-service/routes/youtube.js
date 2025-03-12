@@ -1,14 +1,24 @@
 //Image/search-service/routes/youtube.js
 
-import dotenv from 'dotenv';
-dotenv.config();
-
 import express from "express";
 import fetch from "node-fetch";
+import fs from "fs";
+import path from "path";
 
 const router = express.Router();
+// 🔹 AWS Secrets Manager에서 환경 변수 읽는 함수
+function readSecret(secretName) {
+  const secretPath = path.join('/mnt/secrets-store', secretName);
+  try {
+    return fs.readFileSync(secretPath, 'utf8').trim();
+  } catch (err) {
+    console.error(`❌ Error reading secret ${secretName} from ${secretPath}:`, err);
+    throw err;
+  }
+}
 
-const youtubeApiKeys = process.env.YOUTUBE_API_KEYS.split(",");
+// ✅ YouTube API 키 읽기 (쉼표로 구분된 여러 개의 키)
+const youtubeApiKeys = readSecret('youtube_api_keys').split(",");
 let currentApiKeyIndex = 0;
 let currentApiKey = youtubeApiKeys[currentApiKeyIndex];
 
@@ -21,8 +31,6 @@ function rotateApiKey() {
   );
 }
 
-// Math.random
-//get apikey로 바꾼다음에 api키 env값에서 랜덤으로 값을 가져온다다
 
 // GET /api/youtube/search?trackName=...&artistName=...
 router.get("/search", async (req, res) => {
@@ -40,7 +48,7 @@ router.get("/search", async (req, res) => {
     searchQueryText
   )}&key=${currentApiKey}&maxResults=1`;
   
-  console.log(url);
+  console.log(`📡 YouTube API 요청: ${url}`);
   
 
   try {

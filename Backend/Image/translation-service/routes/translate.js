@@ -1,34 +1,48 @@
 // bravo-back/routes/translate.js
 
-
 import express from 'express';
 import { TranslateClient, TranslateTextCommand } from "@aws-sdk/client-translate";
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 import { performance } from "perf_hooks";
-import dotenv from "dotenv";
 import { encode } from "gpt-3-encoder"; // 토큰 수 계산 라이브러리
 import { Track } from '../models/Track.js';
-
-
-dotenv.config();
+import fs from 'fs';
+import path from 'path';
 
 const router = express.Router();
 
+// 🔹 AWS Secrets Manager에서 환경 변수 읽는 함수
+function readSecret(secretName) {
+  const secretPath = path.join('/mnt/secrets-store', secretName);
+  try {
+    return fs.readFileSync(secretPath, 'utf8').trim();
+  } catch (err) {
+    console.error(`❌ Error reading secret ${secretName} from ${secretPath}:`, err);
+    throw err;
+  }
+}
+
+// ✅ AWS Secrets Manager에서 필요한 환경 변수 불러오기
+const AWS_REGION = readSecret('aws_region');
+const AWS_ACCESS_KEY_ID = readSecret('aws_access_key_id');
+const AWS_SECRET_ACCESS_KEY = readSecret('aws_secret_access_key');
+const INFERENCE_PROFILE_ARN = readSecret('inference_profile_arn');
+
 // AWS Bedrock Client 설정 (region은 env에 있는 값 그대로 사용)
 const client = new BedrockRuntimeClient({
-  region: process.env.AWS_REGION,
+  region: AWS_REGION,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    accessKeyId: AWS_ACCESS_KEY_ID,
+    secretAccessKey: AWS_SECRET_ACCESS_KEY,
   },
 });
 
 // AWS Translate Client 생성
 const translateClient = new TranslateClient({
-  region: process.env.AWS_REGION,
+  region: AWS_REGION,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    accessKeyId: AWS_ACCESS_KEY_ID,
+    secretAccessKey: AWS_SECRET_ACCESS_KEY,
   },
 });
 
@@ -111,7 +125,7 @@ ${amazonTranslation}
   const inputTokens = encode(systemPrompt);
   console.log(`🔢 Claude 입력 토큰 수: ${inputTokens.length}`);
   const inputPayload = {
-    modelId: process.env.INFERENCE_PROFILE_ARN,
+    modelId: INFERENCE_PROFILE_ARN,
     contentType: "application/json",
     accept: "application/json",
     body: JSON.stringify({

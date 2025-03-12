@@ -1,6 +1,22 @@
 // backend/routes/track.js
 import express from 'express';
 import { Track } from '../models/Track.js';
+import fs from 'fs';
+import path from 'path';
+
+// 🔹 AWS Secrets Manager에서 환경 변수 읽는 함수
+function readSecret(secretName) {
+  const secretPath = path.join('/mnt/secrets-store', secretName);
+  try {
+    return fs.readFileSync(secretPath, 'utf8').trim();
+  } catch (err) {
+    console.error(`❌ Error reading secret ${secretName} from ${secretPath}:`, err);
+    throw err;
+  }
+}
+
+// MongoDB URI 불러오기
+const MONGO_URI = readSecret('mongo_uri');
 
 const router = express.Router();
 
