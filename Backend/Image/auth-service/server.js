@@ -50,13 +50,3 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Auth Service running on port ${PORT}`);
 });
-
-
-// SonarQube Bug Test
-// 의도적 오타: a = 5 (단순 대입) 대신 === 등 비교연산자 써야 함
-function alwaysTrue(a) {
-  if (a = 5) { // SonarQube가 "조건문이 항상 참" 또는 "오타"로 버그 감지
-    return "Always runs";
-  }
-  return "Never runs";
-}
