@@ -4,9 +4,10 @@ import fetch from 'node-fetch';
 import jwt from 'jsonwebtoken';
 import querystring from 'querystring';
 import { OAuth2Client } from 'google-auth-library';
+import fs from 'fs';
+import path from 'path';
 import mongoose from 'mongoose';
 import { User } from '../models/User.js';
-import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 
 // secrets 파일에서 값을 읽어오는 함수
 function readSecret(secretName) {
@@ -21,9 +22,9 @@ function readSecret(secretName) {
 
 const GOOGLE_CLIENT_ID = readSecret('google_client_id');
 const GOOGLE_CLIENT_SECRET = readSecret('google_client_secret');
-const GOOGLE_REDIRECT_URI = readSecret('google_redirect_uri'); 
+const GOOGLE_REDIRECT_URI = readSecret('google_redirect_uri');
 const JWT_SECRET = readSecret('jwt_secret');
-const FRONTEND_URL = readSecret('frontend_url'); 
+const FRONTEND_URL = readSecret('frontend_url');
 
 const router = express.Router();
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
@@ -91,11 +92,11 @@ router.get('/google-login', (req, res) => {
 //         picture: payload.picture,
 //       };
 //       jwtToken = jwt.sign(jwtPayload, JWT_SECRET, { expiresIn: "7d" });
-      
+
 //       user = new User({ email, name: payload.name, picture: payload.picture, jwtToken });
 //       await user.save();
 //       console.log("✅ 새 사용자 저장됨:", user);
-      
+
 //       // 실제 저장 후에는 user._id를 사용하여 JWT를 재발급합니다. 2025.02.14 플레이리스트 추가가
 //       jwtPayload.id = user._id;
 //       jwtToken = jwt.sign(jwtPayload, JWT_SECRET, { expiresIn: "7d" });
