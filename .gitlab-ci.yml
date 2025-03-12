@@ -35,7 +35,6 @@ sonarqube-scan:
   script: |
     set -e
 
-    # 변경사항 없으면 스캔 스킵
     if [ ! -s changed_services.txt ]; then
       echo "변경 사항이 없어 SonarQube 분석을 건너뜁니다."
       exit 0
@@ -47,17 +46,18 @@ sonarqube-scan:
       -Dsonar.sources=. \
       -Dsonar.host.url=$SONAR_HOST_URL \
       -Dsonar.login=$GITLAB_SONAR_TOKEN
+      -Dsonar.qualitygate.wait=true
 
     # $? : 직전 명령(sonar-scanner)의 종료 코드
     # 0이면 성공, 그 외는 실패
     if [ $? -eq 0 ]; then
-      echo "SonarQube 분석 성공"
+      echo "SonarQube 분석 및 품질 게이트 통과"
       # SonarQube 분석 '성공' Slack 알림
       curl -X POST -H "Content-type: application/json" \
         --data '{"text": "SonarQube 코드 분석에 성공했습니다.\n커밋 해시: '"$CI_COMMIT_SHORT_SHA"'"}' \
         "https://hooks.slack.com/services/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"
     else
-      echo "SonarQube 분석 실패"
+      echo "SonarQube 품질 게이트 실패"
       # SonarQube 분석 '실패' Slack 알림
       curl -X POST -H "Content-type: application/json" \
         --data '{"text": "SonarQube 코드 분석에 실패했습니다.\n커밋 해시: '"$CI_COMMIT_SHORT_SHA"'"}' \
