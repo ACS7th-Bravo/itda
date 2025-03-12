@@ -21,7 +21,7 @@ spec:
       containers:
         - name: itda-ui
           # 여기서 GIT_COMMIT_HASH라는 플레이스홀더를 사용합니다.
-          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-ui:f760dde5
+          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-ui:latest
           ports:
             - containerPort: 5174
           resources:
@@ -73,7 +73,7 @@ spec:
       serviceAccountName: itda-secrets-access
       containers:
         - name: itda-auth
-          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-auth:f4d1f57b
+          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-auth:latest
           ports:
             - containerPort: 3001
           resources:
@@ -126,7 +126,7 @@ spec:
         - name: aws-ecr-creds
       containers:
         - name: itda-search
-          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-search:a8f8dbf3
+          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-search:latest
           ports:
             - containerPort: 3002
           resources:
@@ -179,7 +179,7 @@ spec:
         - name: aws-ecr-creds
       containers:
         - name: itda-lyrics
-          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-lyrics:a8f8dbf3
+          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-lyrics:latest
           ports:
             - containerPort: 3003
           resources:
@@ -232,7 +232,7 @@ spec:
         - name: aws-ecr-creds
       containers:
         - name: itda-translation
-          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-translation:a8f8dbf3
+          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-translation:latest
           ports:
             - containerPort: 3004
           resources:
@@ -285,7 +285,7 @@ spec:
         - name: aws-ecr-creds
       containers:
         - name: itda-playlist
-          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-playlist:a8f8dbf3
+          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-playlist:latest
           ports:
             - containerPort: 3005
           resources:
@@ -308,7 +308,10 @@ spec:
       volumes:
         - name: aws-secrets
           csi:
-            driver: secrets-store.csi.k
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "aws-secrets-itda-playlist"
 
 ---
 apiVersion: apps/v1
