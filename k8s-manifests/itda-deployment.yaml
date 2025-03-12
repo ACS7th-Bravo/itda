@@ -21,7 +21,7 @@ spec:
       containers:
         - name: itda-ui
           # 여기서 GIT_COMMIT_HASH라는 플레이스홀더를 사용합니다.
-          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-ui:a8f8dbf3
+          image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-ui:f760dde5
           ports:
             - containerPort: 5174
           resources:
