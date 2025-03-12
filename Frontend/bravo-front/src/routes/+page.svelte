@@ -218,7 +218,7 @@
       height: 600px;
       margin: 20px auto;
       perspective: 2100px;
-      z-index: 20; /* WavyBackground의 z-index(10)보다 높은 값 */
+      z-index: 10; /* WavyBackground의 z-index(10)보다 높은 값 */
     }
     
     .card {

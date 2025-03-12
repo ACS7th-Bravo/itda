@@ -6,7 +6,8 @@ import querystring from 'querystring';
 import { OAuth2Client } from 'google-auth-library';
 import mongoose from 'mongoose';
 import { User } from '../models/User.js';
-import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
+import fs from 'fs';
+import path from 'path';
 
 // secrets 파일에서 값을 읽어오는 함수
 function readSecret(secretName) {

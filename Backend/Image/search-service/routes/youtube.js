@@ -18,14 +18,14 @@ function readSecret(secretName) {
 }
 
 // ✅ YouTube API 키 읽기 (쉼표로 구분된 여러 개의 키)
-const youtubeApiKeys = readSecret('youtube_api_keys').split(",");
+const YOUTUBE_API_KEYS = readSecret('youtube_api_keys').split(",");
 let currentApiKeyIndex = 0;
 let currentApiKey = youtubeApiKeys[currentApiKeyIndex];
 
 // API 키 로테이션 함수
 function rotateApiKey() {
-  currentApiKeyIndex = (currentApiKeyIndex + 1) % youtubeApiKeys.length;
-  currentApiKey = youtubeApiKeys[currentApiKeyIndex];
+  currentApiKeyIndex = (currentApiKeyIndex + 1) % YOUTUBE_API_KEYS.length;
+  currentApiKey = YOUTUBE_API_KEYS[currentApiKeyIndex];
   console.log(
     `[🔄 ${new Date().toLocaleString()}]  ${currentApiKeyIndex + 1}번째 YouTube API 키 변경됨: ${currentApiKey}`
   );
@@ -57,8 +57,7 @@ router.get("/search", async (req, res) => {
       return res.status(response.status).json({ error: "YouTube API error" });
     }
     const data = await response.json();
-    const videoId =
-      data.items && data.items.length > 0 ? data.items[0].id.videoId : null;
+    const videoId = data.items?.length ? data.items[0].id.videoId : null;
     res.json({ videoId });
   } catch (error) {
     console.error("Error in /api/youtube/search:", error);

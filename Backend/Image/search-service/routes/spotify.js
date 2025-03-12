@@ -17,8 +17,8 @@ function readSecret(secretName) {
   }
 }
 
-const clientId = readSecret('spotify_client_id');
-const clientSecret = readSecret('spotify_client_secret');
+const SPOTIFY_CLIENT_ID = readSecret('spotify_client_id');
+const SPOTIFY_CLIENT_SECRET = readSecret('spotify_client_secret');
 const TOKEN_LIFETIME = 3600; // 1시간 (초 단위)
 
 let accessToken = null;
@@ -28,8 +28,8 @@ async function fetchAccessToken() {
   const url = "https://accounts.spotify.com/api/token";
   const body = new URLSearchParams({
     grant_type: "client_credentials",
-    client_id: clientId,
-    client_secret: clientSecret,
+    client_id: SPOTIFY_CLIENT_ID,
+    client_secret: SPOTIFY_CLIENT_SECRET,
   });
   const response = await fetch(url, {
     method: "POST",
