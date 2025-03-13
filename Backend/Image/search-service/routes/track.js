@@ -93,6 +93,7 @@ router.post('/', async (req, res) => {
           console.log(`✅ ${track_name} - YouTube ID를 Redis에 캐싱했습니다: ${streaming_id}`);
         } else if (existingValue !== streaming_id) {
           await redis.set(redisKey, streaming_id, 'EX', REDIS_CACHE_TTL);
+          await redis.set(redisKey + ':name', track_name, 'EX', REDIS_CACHE_TTL); // track_name 업데이트
           console.log(`🔄 ${track_name} - Redis의 YouTube ID를 업데이트했습니다: ${streaming_id}`);
         } else {
           console.log(`ℹ️ ${track_name} - 이미 Redis에 동일한 YouTube ID가 캐싱되어 있습니다.`);
