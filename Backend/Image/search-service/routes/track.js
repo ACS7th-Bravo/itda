@@ -1,10 +1,8 @@
-// backend/routes/track.js
 import express from 'express';
-import { Track } from '../models/Track.js';
+import AWS from 'aws-sdk';  // DynamoDB 클라이언트를 사용하기 위한 import 추가
 import fs from 'fs';
 import path from 'path';
-import { createClient } from 'redis';
-
+import { createClient } from 'redis'; // Redis 클라이언트 import 추가
 
 // 🔹 AWS Secrets Manager에서 환경 변수 읽는 함수
 function readSecret(secretName) {
@@ -17,9 +15,12 @@ function readSecret(secretName) {
   }
 }
 
-// MongoDB URI 불러오기
+// DynamoDB 및 Redis URI 불러오기
 const REDIS_URL = readSecret('redis_url');
-
+const AWS_REGION_DYNAMODB = readSecret('AWS_REGION_DYNAMODB');
+const AWS_ACCESS_KEY_ID = readSecret('AWS_ACCESS_KEY_ID');
+const AWS_SECRET_ACCESS_KEY = readSecret('AWS_SECRET_ACCESS_KEY');
+const DYNAMODB_TABLE_TRACKS = readSecret('DYNAMODB_TABLE_TRACKS');
 
 // 🔹 Redis 클라이언트 설정
 const redis = createClient({
@@ -29,12 +30,20 @@ const redis = createClient({
 redis.on('error', err => console.error('Redis Client Error', err));
 await redis.connect();
 
+// 🔹 DynamoDB 클라이언트 설정
+const dynamoDb = new AWS.DynamoDB.DocumentClient({
+  region: AWS_REGION_DYNAMODB,
+  accessKeyId: AWS_ACCESS_KEY_ID,
+  secretAccessKey: AWS_SECRET_ACCESS_KEY,
+});
+
 // 🔹 Redis 캐시 설정
 const REDIS_CACHE_TTL = 60 * 60 * 24; // 24시간
 const REDIS_KEY_PREFIX = 'track:youtube:';
 
 const router = express.Router();
 
+// POST 요청: 트랙 데이터 저장
 router.post('/', async (req, res) => {
   try {
     const {
@@ -50,10 +59,10 @@ router.post('/', async (req, res) => {
       streaming_id,
     } = req.body;
 
-    // 만약 동일한 track_id가 이미 존재하면 저장하지 않거나 업데이트 처리할 수 있음.
-    let track = await Track.findOne({ track_id });
-    if (!track) {
-      track = new Track({
+    // DynamoDB에 트랙 정보 저장
+    const params = {
+      TableName: DYNAMODB_TABLE_TRACKS,
+      Item: {
         track_id,
         track_name,
         artist_id,
@@ -64,23 +73,29 @@ router.post('/', async (req, res) => {
         parsed_lyrics,
         lyrics_translation,
         streaming_id,
-      });
-      await track.save();
-    }
+      },
+    };
+
+    // DynamoDB에 저장
+    await dynamoDb.put(params).promise();
+
+    // 데이터 저장 성공 로그
+    console.log(`✅ DynamoDB에 트랙이 저장되었습니다: ${track_id} - ${track_name}`);
+
     // 🔹 Redis에 YouTube ID 캐싱
     if (streaming_id && track_id) {
       try {
         const redisKey = REDIS_KEY_PREFIX + track_id;
         const existingValue = await redis.get(redisKey);
-        
+
         if (!existingValue) {
           await redis.set(redisKey, streaming_id, 'EX', REDIS_CACHE_TTL);
-          console.log("✅ YouTube ID를 Redis에 캐싱했습니다:", streaming_id);
+          console.log(`✅ ${track_name} - YouTube ID를 Redis에 캐싱했습니다: ${streaming_id}`);
         } else if (existingValue !== streaming_id) {
           await redis.set(redisKey, streaming_id, 'EX', REDIS_CACHE_TTL);
-          console.log("🔄 Redis의 YouTube ID를 업데이트했습니다:", streaming_id);
+          console.log(`🔄 ${track_name} - Redis의 YouTube ID를 업데이트했습니다: ${streaming_id}`);
         } else {
-          console.log("ℹ️ 이미 Redis에 동일한 YouTube ID가 캐싱되어 있습니다.");
+          console.log(`ℹ️ ${track_name} - 이미 Redis에 동일한 YouTube ID가 캐싱되어 있습니다.`);
         }
       } catch (redisErr) {
         console.error("⚠️ Redis 캐싱 중 오류 발생:", redisErr);
@@ -94,45 +109,60 @@ router.post('/', async (req, res) => {
   }
 });
 
-
-// GET /api/track?track_id=...
+// GET 요청: 트랙 조회
 router.get('/', async (req, res) => {
   const { track_id } = req.query;
   if (!track_id) {
     return res.status(400).json({ error: 'track_id parameter is required' });
   }
-  
+
   try {
     console.log("🔍 트랙 ID로 YouTube 비디오 ID 검색 중:", track_id);
-    
+
     // 1️⃣ Redis에서 먼저 확인
     const redisKey = REDIS_KEY_PREFIX + track_id;
     try {
       const cachedVideoId = await redis.get(redisKey);
       if (cachedVideoId) {
-        console.log("✅ Redis 캐시에서 YouTube ID를 찾았습니다:", cachedVideoId);
+        console.log(`✅ ${track_id} - ${track_name} - Redis 캐시에서 YouTube ID를 찾았습니다: ${cachedVideoId}`);
         return res.json({ streaming_id: cachedVideoId });
       } else {
-        console.log("ℹ️ Redis에 캐시된 YouTube ID가 없습니다. DB 확인 중...");
+        console.log(`ℹ️ ${track_id} - ${track_name} - Redis에 캐시된 YouTube ID가 없습니다. DB 확인 중...`);
       }
     } catch (redisErr) {
       console.error("⚠️ Redis 접근 중 오류 발생:", redisErr);
     }
-    
-    // [변경] MongoDB 대신 DynamoDB에서 검색
-    const track = await Track.findOne({ track_id });
-    if (track && track.streaming_id) {
-      console.log("✅ Dynamo DB에서 YouTube ID를 찾았습니다:", track.streaming_id);
-      try {
-        await redis.set(redisKey, track.streaming_id, 'EX', REDIS_CACHE_TTL);
-        console.log("✅ Dynamo DB의 YouTube ID를 Redis에 캐싱했습니다.");
-      } catch (redisErr) {
-        console.error("⚠️ Redis 캐싱 중 오류 발생:", redisErr);
+
+    // 2️⃣ DynamoDB에서 해당 트랙 조회
+    const params = {
+      TableName: DYNAMODB_TABLE_TRACKS,
+      Key: {
+        track_id, // track_id로 조회
+      },
+    };
+
+    try {
+      const data = await dynamoDb.get(params).promise();
+
+      if (data.Item && data.Item.streaming_id) {
+        console.log(`✅ ${track_id} - ${data.Item.track_name} - DynamoDB에서 YouTube ID를 찾았습니다: ${data.Item.streaming_id}`);
+
+        // 3️⃣ Redis에 캐시
+        try {
+          await redis.set(redisKey, data.Item.streaming_id, 'EX', REDIS_CACHE_TTL);
+          console.log(`✅ ${track_id} - ${data.Item.track_name} - DynamoDB의 YouTube ID를 Redis에 캐싱했습니다.`);
+        } catch (redisErr) {
+          console.error("⚠️ Redis 캐싱 중 오류 발생:", redisErr);
+        }
+
+        return res.json({ streaming_id: data.Item.streaming_id });
+      } else {
+        console.log(`❌ ${track_id} - 트랙 이름을 찾을 수 없습니다. 클라이언트는 youtube.js API를 호출해야 합니다.`);
+        return res.status(404).json({ error: 'Track not found' });
       }
-      return res.json({ streaming_id: track.streaming_id });
-    } else {
-      console.log("❌ YouTube ID를 찾을 수 없습니다. 클라이언트는 youtube.js API를 호출해야 합니다.");
-      return res.status(404).json({ error: 'Track not found' });
+    } catch (dbErr) {
+      console.error("⚠️ DynamoDB 조회 오류:", dbErr);
+      return res.status(500).json({ error: 'Internal server error' });
     }
   } catch (error) {
     console.error('❌ Error fetching track:', error);
