@@ -19,7 +19,7 @@ function readSecret(secretName) {
 
 // MongoDB URI 불러오기
 const REDIS_URL = readSecret('redis_url');
-const MONGO_URI = readSecret('mongo_uri');
+
 
 // 🔹 Redis 클라이언트 설정
 const redis = createClient({
@@ -119,19 +119,16 @@ router.get('/', async (req, res) => {
       console.error("⚠️ Redis 접근 중 오류 발생:", redisErr);
     }
     
-    // 2️⃣ MongoDB에서 검색
+    // [변경] MongoDB 대신 DynamoDB에서 검색
     const track = await Track.findOne({ track_id });
     if (track && track.streaming_id) {
-      console.log("✅ DB에서 YouTube ID를 찾았습니다:", track.streaming_id);
-      
-      // DB에서 찾은 데이터를 Redis에 캐싱
+      console.log("✅ Dynamo DB에서 YouTube ID를 찾았습니다:", track.streaming_id);
       try {
         await redis.set(redisKey, track.streaming_id, 'EX', REDIS_CACHE_TTL);
-        console.log("✅ DB의 YouTube ID를 Redis에 캐싱했습니다.");
+        console.log("✅ Dynamo DB의 YouTube ID를 Redis에 캐싱했습니다.");
       } catch (redisErr) {
         console.error("⚠️ Redis 캐싱 중 오류 발생:", redisErr);
       }
-      
       return res.json({ streaming_id: track.streaming_id });
     } else {
       console.log("❌ YouTube ID를 찾을 수 없습니다. 클라이언트는 youtube.js API를 호출해야 합니다.");
