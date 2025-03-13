@@ -3,6 +3,8 @@ import express from 'express';
 import { Track } from '../models/Track.js';
 import fs from 'fs';
 import path from 'path';
+import { createClient } from 'redis';
+
 
 // 🔹 AWS Secrets Manager에서 환경 변수 읽는 함수
 function readSecret(secretName) {
