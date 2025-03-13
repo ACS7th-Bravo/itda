@@ -243,7 +243,7 @@ router.patch('/:playlistId/remove-track', async (req, res) => {
 // === NEW ADDITIONS END ===
 
 
-// === NEW ADDITIONS START: 공유 API 엔드포인트 수정 (디버깅 로그 추가) ===
+// 🔹 플레이리스트 공유 API
 router.post('/share', async (req, res) => {
   try {
     let { originalPlaylistId, recipientEmail } = req.body;
@@ -251,48 +251,42 @@ router.post('/share', async (req, res) => {
       return res.status(400).json({ error: 'originalPlaylistId와 recipientEmail은 필수입니다.' });
     }
 
-    // recipientEmail 정리 (소문자로 변환 및 공백 제거)
     recipientEmail = recipientEmail.trim().toLowerCase();
-    console.log("[공유 API] 정규화된 recipientEmail:", recipientEmail); // 디버깅 로그
 
-    // 🔹 1. **보낸 사람(로그인한 사용자) 정보 조회** → `originalPlaylistId`의 `email`을 이용
+    // 🔹 1. 원본 플레이리스트 조회
     const originalPlaylistParams = {
       TableName: DYNAMODB_TABLE_PLAYLISTS,
       Key: { _id: originalPlaylistId },
     };
-
     const originalPlaylistData = await dynamoDb.get(originalPlaylistParams).promise();
     if (!originalPlaylistData.Item) {
       return res.status(404).json({ error: '원본 플레이리스트를 찾을 수 없습니다.' });
     }
     const originalPlaylist = originalPlaylistData.Item;
-    const senderEmail = originalPlaylist.email; // 플레이리스트 생성자의 이메일
+    const senderEmail = originalPlaylist.email;
 
-    // 🔹 2. **보낸 사람(로그인한 사용자)의 이름 조회** (`Users` 테이블에서 가져오기)
+    // 🔹 2. 보낸 사람(로그인한 사용자) 정보 조회
     const senderParams = {
       TableName: DYNAMODB_TABLE_USERS,
       Key: { email: senderEmail },
     };
-
     const senderData = await dynamoDb.get(senderParams).promise();
     if (!senderData.Item) {
       return res.status(404).json({ error: '보낸 사용자의 정보가 없습니다.' });
     }
-    const senderName = senderData.Item.name; // 🔥 보낸 사람의 이름 가져오기
-    console.log(`[공유 API] 보낸 사용자: ${senderName} (${senderEmail})`); // 디버깅 로그
+    const senderName = senderData.Item.name;
 
-    // 🔹 3. **수신자 이메일 검증** (Users 테이블에서 조회)
+    // 🔹 3. 수신자 이메일 검증
     const recipientParams = {
       TableName: DYNAMODB_TABLE_USERS,
       Key: { email: recipientEmail },
     };
-
     const recipientData = await dynamoDb.get(recipientParams).promise();
     if (!recipientData.Item) {
       return res.status(404).json({ error: '수신자가 존재하지 않는 유저입니다.' });
     }
 
-    // 🔹 4. **공유된 플레이리스트 이름 중복 확인 (숫자 증가)**
+    // 🔹 4. 공유된 플레이리스트 이름 중복 확인 (FilterExpression 사용)
     let basePlaylistName = `${originalPlaylist.name} - ${senderName}로부터 공유됨`;
     let newPlaylistName = basePlaylistName;
     let count = 1;
@@ -300,41 +294,38 @@ router.post('/share', async (req, res) => {
     while (true) {
       const checkParams = {
         TableName: DYNAMODB_TABLE_PLAYLISTS,
-        IndexName: 'email-index', // 📌 email 기준 GSI가 필요함
-        KeyConditionExpression: 'email = :email AND #name = :name',
+        IndexName: 'email-index', 
+        KeyConditionExpression: 'email = :email',
+        FilterExpression: '#name = :name',
         ExpressionAttributeValues: {
           ':email': recipientEmail,
-          ':name': newPlaylistName
+          ':name': newPlaylistName,
         },
         ExpressionAttributeNames: {
-          '#name': 'name'
-        }
+          '#name': 'name',
+        },
       };
 
       const existingPlaylists = await dynamoDb.query(checkParams).promise();
+      if (existingPlaylists.Items.length === 0) break;
 
-      if (existingPlaylists.Items.length === 0) {
-        break; // 중복된 이름이 없으면 루프 종료
-      }
-
-      // 중복된 경우, 숫자를 증가
       count++;
       newPlaylistName = `${basePlaylistName} (${count})`;
     }
 
-    // 🔹 5. **공유된 플레이리스트 생성**
+    // 🔹 5. 공유된 플레이리스트 생성
     const sharedPlaylistId = recipientEmail + '_' + Date.now();
     const sharedPlaylist = {
       _id: sharedPlaylistId,
       email: recipientEmail,
-      name: newPlaylistName,  // ✅ **중복 방지된 새로운 플레이리스트 이름 적용**
+      name: newPlaylistName,
       tracks: originalPlaylist.tracks,
       visible: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    // 🔹 6. **DynamoDB에 저장**
+    // 🔹 6. DynamoDB에 저장
     const putParams = {
       TableName: DYNAMODB_TABLE_PLAYLISTS,
       Item: sharedPlaylist,
