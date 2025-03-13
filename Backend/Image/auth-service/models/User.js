@@ -25,21 +25,7 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient({
   secretAccessKey: AWS_SECRET_ACCESS_KEY,
 });
 
-// DynamoDB 특수 형식 처리 함수
-function processDynamoDBItem(item) {
-  if (!item) return null;
-  const processedItem = { ...item };
-
-  // 처리해야 할 특수 형식이 있을 경우 여기서 변환
-  if (Array.isArray(processedItem.email) && processedItem.email.length > 0) {
-    if (processedItem.email[0].S) {
-      processedItem.email = processedItem.email[0].S;
-    }
-  }
-
-  return processedItem;
-}
-
+// 사용자 저장 (DynamoDB에 저장)
 export class User {
   constructor(userData) {
     this.email = userData.email;
@@ -53,10 +39,16 @@ export class User {
   async save() {
     const params = {
       TableName: DYNAMODB_TABLE_USERS,
-      Item: this,
+      Item: {
+        email: this.email,
+        name: this.name,
+        picture: this.picture,
+        jwtToken: this.jwtToken,
+        createdAt: this.createdAt,
+      },
     };
     try {
-      console.log(`🔍 DynamoDB save 요청: ${this.email}`, JSON.stringify(params.Item).substring(0, 200) + '...');
+      console.log(`🔍 DynamoDB save 요청: ${this.email}`);
       await dynamoDb.put(params).promise();
       console.log(`✅ DynamoDB save 성공: ${this.email}`);
       return this;
@@ -71,12 +63,12 @@ export class User {
     const params = {
       TableName: DYNAMODB_TABLE_USERS,
       Key: {
-        email: condition.email,
+        email: condition.email,  // email을 Key로 사용
       },
     };
     try {
       const result = await dynamoDb.get(params).promise();
-      return result.Item || null;
+      return result.Item || null;  // Item이 없으면 null 반환
     } catch (error) {
       console.error('Error finding user in DynamoDB:', error);
       throw error;
@@ -92,15 +84,15 @@ export class User {
     const params = {
       TableName: DYNAMODB_TABLE_USERS,
       Key: {
-        email: condition.email,
+        email: condition.email,  // email을 Key로 사용
       },
       UpdateExpression: updateExpression,
       ExpressionAttributeValues: expressionAttributeValues,
-      ReturnValues: 'ALL_NEW',
+      ReturnValues: 'ALL_NEW',  // 업데이트된 결과 반환
     };
     try {
       const result = await dynamoDb.update(params).promise();
-      return result.Attributes;
+      return result.Attributes;  // 반환된 속성들
     } catch (error) {
       console.error('Error updating user in DynamoDB:', error);
       throw error;

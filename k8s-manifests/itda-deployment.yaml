@@ -403,4 +403,4 @@ spec:
           ports:
             - containerPort: 6379
 #MeMo6
-#다이나모 로그인 6차차
+#다이나모 로그인 7차차
