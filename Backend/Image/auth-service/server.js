@@ -56,12 +56,6 @@ app.get('/ready', (req, res) => {
   }
 });
 
-// MongoDB 연결
-mongoose.connect(MONGO_URI, { /* 옵션들 */ })
-  .then(() => console.log('MongoDB connected (Auth Service)'))
-  .catch(err => console.error('MongoDB connection error:', err));
-
-
   app.listen(PORT, () => {
     console.log(`Search Service running on port ${PORT}`);
     console.log(`🔹 Using DynamoDB table: ${readSecret('dynamodb_table_userss') || 'dynamo_tracks'}`);
