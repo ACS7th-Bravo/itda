@@ -11,7 +11,6 @@
 	import ColorThief from 'colorthief';
 
 	const currentUser = getContext('currentUser');
-	$: userEmail = $currentUser ? $currentUser.email : '';
 
 	let userName = '';
 	if (currentUser && currentUser.name) {
