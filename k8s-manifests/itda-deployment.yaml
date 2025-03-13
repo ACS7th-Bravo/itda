@@ -403,4 +403,4 @@ spec:
           ports:
             - containerPort: 6379
 #MeMo8
-#다이나모 서치 다시 테스트 마지막막document client)
+#다이나모 서치 다시 테스트 진짜 마지막막document client)

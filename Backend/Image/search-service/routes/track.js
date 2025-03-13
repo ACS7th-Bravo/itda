@@ -59,8 +59,24 @@ router.post('/', async (req, res) => {
       streaming_id,
     } = req.body;
 
-    // DynamoDB에 트랙 정보 저장
+    // DynamoDB에서 트랙이 이미 존재하는지 확인
     const params = {
+      TableName: DYNAMODB_TABLE_TRACKS,
+      Key: {
+        track_id, // track_id로 조회
+      },
+    };
+
+    const existingTrack = await dynamoDb.get(params).promise();
+    
+    if (existingTrack.Item) {
+      // 트랙이 이미 존재하면 저장하지 않음
+      console.log(`ℹ️ ${track_name} - 이미 DynamoDB에 트랙이 존재합니다.`);
+      return res.status(200).json({ message: 'Track already exists' });
+    }
+
+    // DynamoDB에 트랙 정보 저장
+    const putParams = {
       TableName: DYNAMODB_TABLE_TRACKS,
       Item: {
         track_id,
@@ -77,7 +93,7 @@ router.post('/', async (req, res) => {
     };
 
     // DynamoDB에 저장
-    await dynamoDb.put(params).promise();
+    await dynamoDb.put(putParams).promise();
 
     // 데이터 저장 성공 로그
     console.log(`✅ DynamoDB에 트랙이 저장되었습니다: ${track_id} - ${track_name}`);
@@ -109,6 +125,7 @@ router.post('/', async (req, res) => {
     res.status(500).json({ message: 'Error saving track' });
   }
 });
+
 
 // GET 요청: 트랙 조회
 router.get('/', async (req, res) => {
