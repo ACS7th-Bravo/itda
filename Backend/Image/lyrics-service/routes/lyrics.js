@@ -23,10 +23,10 @@ function readSecret(secretName) {
 
 const router = express.Router();
 
-const LRCLIB_API_BASE = readSecret('LRCLIB_API_BASE');
-const MUSIXMATCH_API_KEY = readSecret('MUSIXMATCH_API_KEY');
-const MUSIXMATCH_API_HOST = readSecret('MUSIXMATCH_API_HOST');
-const REDIS_URL = readSecret('REDIS_URL');
+const LRCLIB_API_BASE = readSecret('lrclib_api_base');
+const MUSIXMATCH_API_KEY = readSecret('musixmatch_api_key');
+const MUSIXMATCH_API_HOST = readSecret('musixmatch_api_host');
+const REDIS_URL = readSecret('mongo_uri');
 
 // Redis 클라이언트 설정
 const redisClient = createClient({ url: REDIS_URL });
@@ -159,21 +159,21 @@ router.get('/', async (req, res) => {
   const trackNameToSearch = englishTrackName || song;
   const artistNameToSearch = englishArtistName || artist;
 
-// 캐시 키 생성: track_id가 있으면 이를 사용, 없으면 song과 artist로 생성
-const cacheKey = track_id
-? `lyrics:${track_id}`
-: `lyrics:${cleanQueryString(song)}:${cleanQueryString(artist)}`;
+  // 캐시 키 생성: track_id가 있으면 이를 사용, 없으면 song과 artist로 생성
+  const cacheKey = track_id
+    ? `lyrics:${track_id}`
+    : `lyrics:${cleanQueryString(song)}:${cleanQueryString(artist)}`;
 
-// 1. Redis 캐시 조회
-try {
-const cachedData = await redisClient.get(cacheKey);
-if (cachedData) {
-  console.log("✅ [Redis] 캐시 히트 - Redis에서 가사를 가져왔습니다.");
-  return res.json(JSON.parse(cachedData));
-}
-} catch (err) {
-console.error("❌ [Redis] 캐시 조회 중 오류:", err);
-}
+  // 1. Redis 캐시 조회
+  try {
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      console.log("✅ [Redis] 캐시 히트 - Redis에서 가사를 가져왔습니다.");
+      return res.json(JSON.parse(cachedData));
+    }
+  } catch (err) {
+    console.error("❌ [Redis] 캐시 조회 중 오류:", err);
+  }
 
   if (track_id) {
     try {
@@ -257,39 +257,39 @@ console.error("❌ [Redis] 캐시 조회 중 오류:", err);
   }
   // ─────────────────────────────────────────────
 
- // MongoDB에 저장/업데이트
- if (track_id) {
-  try {
-    await Track.findOneAndUpdate(
-      { track_id },
-      { plain_lyrics: plainLyrics, parsed_lyrics: result.length > 0 ? result : null },
-      { upsert: true }
-    );
-    console.log("✅ [DB] DB에 가사 저장/업데이트 완료.");
-  } catch (err) {
-    console.error("❌ [DB] MongoDB 업데이트 오류:", err);
+  // MongoDB에 저장/업데이트
+  if (track_id) {
+    try {
+      await Track.findOneAndUpdate(
+        { track_id },
+        { plain_lyrics: plainLyrics, parsed_lyrics: result.length > 0 ? result : null },
+        { upsert: true }
+      );
+      console.log("✅ [DB] DB에 가사 저장/업데이트 완료.");
+    } catch (err) {
+      console.error("❌ [DB] MongoDB 업데이트 오류:", err);
+    }
   }
-}
 
-const responseData = {
-  song,
-  artist,
-  album,
-  duration,
-  lyrics: result.length > 0 ? plainLyrics : lyrics,
-  parsedLyrics: result.length > 0 ? result : null
-};
+  const responseData = {
+    song,
+    artist,
+    album,
+    duration,
+    lyrics: result.length > 0 ? plainLyrics : lyrics,
+    parsedLyrics: result.length > 0 ? result : null
+  };
 
-// Redis에 저장 (TTL 24시간)
-try {
-  await redisClient.setEx(cacheKey, 86400, JSON.stringify(responseData));
-  console.log("✅ [Redis] Redis에 가사 저장 완료.");
-} catch (err) {
-  console.error("❌ [Redis] Redis 저장 오류:", err);
-}
+  // Redis에 저장 (TTL 24시간)
+  try {
+    await redisClient.setEx(cacheKey, 86400, JSON.stringify(responseData));
+    console.log("✅ [Redis] Redis에 가사 저장 완료.");
+  } catch (err) {
+    console.error("❌ [Redis] Redis 저장 오류:", err);
+  }
 
-console.log("📝 [백엔드] 외부에서 불러온 원본 가사:", lyrics);
-return res.json(responseData);
+  console.log("📝 [백엔드] 외부에서 불러온 원본 가사:", lyrics);
+  return res.json(responseData);
 });
 
 export default router;
