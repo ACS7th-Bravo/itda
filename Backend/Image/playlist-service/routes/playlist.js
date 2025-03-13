@@ -87,12 +87,13 @@ router.get('/', async (req, res) => {
       return res.status(400).json({ error: 'User ID는 필수입니다.' });
     }
 
-    // DynamoDB에서 플레이리스트 조회
+    // DynamoDB에서 이메일을 기준으로 플레이리스트 조회
     const params = {
       TableName: DYNAMODB_TABLE_PLAYLISTS,
-      KeyConditionExpression: 'email = :email',
+      IndexName: 'email-index',  // GSI 이름을 지정
+      KeyConditionExpression: 'email = :email',  // 이메일을 기준으로 쿼리
       ExpressionAttributeValues: {
-        ':email': user_id,
+        ':email': user_id,  // user_id는 email로 제공됨
       },
     };
 
