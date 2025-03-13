@@ -14,7 +14,7 @@
 	import { playlistManager } from '$lib/playlistManagerStore.js';
 	import { playlist } from '$lib/playlistStore.js';
    // *** NEW: Fake user store import ***
-	 import { fakeUser } from '$lib/fakeuserStore.js';
+	//  import { fakeUser } from '$lib/fakeuserStore.js';
 
 	//MSA
 	const backendUrl = import.meta.env.VITE_BACKEND_URL
@@ -42,25 +42,25 @@
 		window.location.href = '/';
 	}
 
-	// (임시)테스트용 로그인 함수: 실제 구글 로그인 대신 미리 정의된 사용자 정보로 로그인 상태 설정
-	function simulateLogin() {
-      const fakeUserData = {
-        email: "aws7th0324@gmail.com",
-        name: "7th AWS",
-        picture: "https://lh3.googleusercontent.com/a/ACg8ocKAnAGq1Y4xTX68-2CSG6Pvi1Zgsbq9BqDZP10K4tgTbIr2Bg=s96-c",
-        jwtToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3Mzk1MjA5OTEsImV4cCI6MTc0MDEyNTc5MX0.VLHGdAVffSjDvG_ab2nas_ctCpFD98HaQURB_3QaP8Q"
-      };
-      localStorage.setItem('jwt_token', fakeUserData.jwtToken);  // [변경] 토큰을 로컬스토리지에 저장
-      isLoggedIn = true;   // [변경] 로그인 상태 업데이트
-      user = fakeUserData; // [변경] 전역 사용자 정보를 fakeUserData로 설정
-      // *** NEW: fakeUser 스토어 업데이트 ***
-      fakeUser.set(fakeUserData);
-			console.log("테스트 로그인 완료:", fakeUserData);
-    }
+// 	// (임시)테스트용 로그인 함수: 실제 구글 로그인 대신 미리 정의된 사용자 정보로 로그인 상태 설정
+// 	function simulateLogin() {
+//       const fakeUserData = {
+//         email: "aws7th0324@gmail.com",
+//         name: "7th AWS",
+//         picture: "https://lh3.googleusercontent.com/a/ACg8ocKAnAGq1Y4xTX68-2CSG6Pvi1Zgsbq9BqDZP10K4tgTbIr2Bg=s96-c",
+//         jwtToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3Mzk1MjA5OTEsImV4cCI6MTc0MDEyNTc5MX0.VLHGdAVffSjDvG_ab2nas_ctCpFD98HaQURB_3QaP8Q"
+//       };
+//       localStorage.setItem('jwt_token', fakeUserData.jwtToken);  // [변경] 토큰을 로컬스토리지에 저장
+//       isLoggedIn = true;   // [변경] 로그인 상태 업데이트
+//       user = fakeUserData; // [변경] 전역 사용자 정보를 fakeUserData로 설정
+//       // *** NEW: fakeUser 스토어 업데이트 ***
+//       fakeUser.set(fakeUserData);
+// 			console.log("테스트 로그인 완료:", fakeUserData);
+//     }
 
-		// *** NEW: 현재 사용자 정보를 담을 컨텍스트 설정 ***
-  // 컴포넌트 초기화 시 fakeUser 스토어를 currentUser 컨텍스트에 설정합니다.
-  setContext('currentUser', fakeUser);
+// 		// *** NEW: 현재 사용자 정보를 담을 컨텍스트 설정 ***
+//   // 컴포넌트 초기화 시 fakeUser 스토어를 currentUser 컨텍스트에 설정합니다.
+//   setContext('currentUser', fakeUser);
 
 	// ✅ 현재 재생 중인 트랙 정보
 	let currentTrack = writable({
@@ -362,39 +362,16 @@
 		script.async = true;
 		document.body.appendChild(script);
 	}
-  // 로그인(임시) - 현재 fakeUser 스토어는 이미 currentUser 컨텍스트에 설정되어 있음
-  setContext('fakeUser', fakeUser);
+//   // 로그인(임시) - 현재 fakeUser 스토어는 이미 currentUser 컨텍스트에 설정되어 있음
+//   setContext('fakeUser', fakeUser);
 
 	// ===================== [추가된 부분: 기존 플레이리스트 목록 로드 및 드롭다운 메뉴 관련 변수/함수] =====================
 	// 새로운 변수 추가: 기존 플레이리스트 목록과 선택한 플레이리스트 ID
 	let existingPlaylists = []; // DB에서 로드한 기존 플레이리스트 배열
 	let selectedPlaylistId = ''; // 드롭다운에서 선택된 플레이리스트의 _id
 
-// *** [A+B: REACTIVE BLOCK ADDED - START] ***
-	// user.email이 변경될 때마다 DB에서 플레이리스트를 조회하여 existingPlaylists에 저장합니다.
-	$: if (user.email) {
-	  (async () => {
-	    try {
-	      const res = await fetch(`${backendUrl}/api/playlist?user_id=${encodeURIComponent(user.email)}`, {
-	        headers: {
-	          Accept: 'application/json',
-	          'Content-Type': 'application/json',
-	          'ngrok-skip-browser-warning': '69420'
-	        }
-	      });
-	      if (!res.ok) throw new Error('플레이리스트 조회 실패');
-	      const text = await res.text();
-	      console.log('플레이리스트 로드 응답 텍스트:', text);
-	      existingPlaylists = JSON.parse(text);
-	    } catch (error) {
-	      console.error('기존 플레이리스트 로드 실패:', error);
-	    }
-	  })();
-	}
-	// *** [A+B: REACTIVE BLOCK ADDED - END] ***
-	
-	// ✅ 앱 시작: Spotify 토큰 체크 제거, YouTube API 로드, 이벤트 리스너 등록
-	onMount(async () => {
+// ✅ 앱 시작: Spotify 토큰 체크 제거, YouTube API 로드, 이벤트 리스너 등록
+onMount(async () => {
 		const urlParams = new URLSearchParams(window.location.search);
 		const tokenFromUrl = urlParams.get('token');
 		if (tokenFromUrl) {
@@ -450,26 +427,27 @@
 		}, 0);
 
 		// [추가] 기존 플레이리스트 목록 로드: 현재 사용자의 이메일(user.email)로 DB 조회
-		// if (user.email) {
-		// 	try {
-		// 	const res = await fetch(`${backendUrl}/api/playlist?user_id=${user.email}`, {
-		// 		headers: {
-		// 				Accept: 'application/json',
-		// 				'Content-Type': 'application/json',
-		// 				'ngrok-skip-browser-warning': '69420'
-		// 			}
-		// 		});
-		// 		if (!res.ok) {
-		// 			throw new Error('플레이리스트 조회 실패');
-		// 		}
-		// 		const text = await res.text();
-		// 		console.log('플레이리스트 로드 응답 텍스트:', text);
-		// 		const data = JSON.parse(text);
-		// 		existingPlaylists = data; // 로드한 기존 플레이리스트 배열 저장
-		// 	} catch (error) {
-		// 		console.error('기존 플레이리스트 로드 실패:', error);
-		// 	}
-		// }
+		if (user.email) {
+			try {
+				const res = await fetch(`${backendUrl}/api/playlist?user_id=${user.email}`, {
+					headers: {
+						Accept: 'application/json',
+						'Content-Type': 'application/json',
+						'ngrok-skip-browser-warning': '69420'
+					}
+				});
+				if (!res.ok) {
+					throw new Error('플레이리스트 조회 실패');
+				}
+				const text = await res.text();
+				console.log('플레이리스트 로드 응답 텍스트:', text);
+				const data = JSON.parse(text);
+				existingPlaylists = data; // 로드한 기존 플레이리스트 배열 저장
+			} catch (error) {
+				console.error('기존 플레이리스트 로드 실패:', error);
+			}
+		}
+
 		return () => {
 			window.removeEventListener('playTrack', handlePlayTrack);
 			if (scrollingSongNameElement) {
@@ -496,7 +474,7 @@
 					: track.imageUrl || '/default-album.png'
 			}));
 			const response = await fetch(`${backendUrl}/api/playlist/${playlistId}`, {
-			method: 'PATCH',
+				method: 'PATCH',
 				headers: {
 					'Content-Type': 'application/json'
 				},
