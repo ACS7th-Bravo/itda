@@ -124,11 +124,12 @@ router.get('/', async (req, res) => {
     const redisKey = REDIS_KEY_PREFIX + track_id;
     try {
       const cachedVideoId = await redis.get(redisKey);
-      if (cachedVideoId) {
-        console.log(`✅ ${track_id} - ${track_name} - Redis 캐시에서 YouTube ID를 찾았습니다: ${cachedVideoId}`);
+      const cachedTrackName = await redis.get(redisKey + ':name'); // Redis에서 track_name도 조회
+      if (cachedVideoId && cachedTrackName) {
+        console.log(`✅ ${track_id} - ${cachedTrackName} - Redis 캐시에서 YouTube ID와 트랙 이름을 찾았습니다: ${cachedVideoId}`);
         return res.json({ streaming_id: cachedVideoId });
       } else {
-        console.log(`ℹ️ ${track_id} - ${track_name} - Redis에 캐시된 YouTube ID가 없습니다. DB 확인 중...`);
+        console.log(`ℹ️ ${track_id} - Redis에 캐시된 YouTube ID나 트랙 이름이 없습니다. DB 확인 중...`);
       }
     } catch (redisErr) {
       console.error("⚠️ Redis 접근 중 오류 발생:", redisErr);
@@ -151,6 +152,7 @@ router.get('/', async (req, res) => {
         // 3️⃣ Redis에 캐시
         try {
           await redis.set(redisKey, data.Item.streaming_id, 'EX', REDIS_CACHE_TTL);
+          await redis.set(redisKey + ':name', data.Item.track_name, 'EX', REDIS_CACHE_TTL); // track_name 캐시
           console.log(`✅ ${track_id} - ${data.Item.track_name} - DynamoDB의 YouTube ID를 Redis에 캐싱했습니다.`);
         } catch (redisErr) {
           console.error("⚠️ Redis 캐싱 중 오류 발생:", redisErr);
