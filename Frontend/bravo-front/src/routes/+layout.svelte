@@ -636,9 +636,9 @@ onMount(async () => {
 					</div>
 				{:else}
 				<!--===== TEST LOGIN 버튼 추가 시작 =====--> 
-          <button on:click={simulateLogin} style="background: #ff9800; color: white; padding: 8px 12px; border: none; border-radius: 4px; margin-right: 10px;">
+          <!-- <button on:click={simulateLogin} style="background: #ff9800; color: white; padding: 8px 12px; border: none; border-radius: 4px; margin-right: 10px;">
             개발자님 전용 버튼
-          </button>
+          </button> -->
           <!--===== TEST LOGIN 버튼 추가 시작 =====-->
 					<button
 						on:click={() =>
