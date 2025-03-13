@@ -26,7 +26,7 @@ const router = express.Router();
 const LRCLIB_API_BASE = readSecret('lrclib_api_base');
 const MUSIXMATCH_API_KEY = readSecret('musixmatch_api_key');
 const MUSIXMATCH_API_HOST = readSecret('musixmatch_api_host');
-const REDIS_URL = readSecret('mongo_uri');
+const REDIS_URL = readSecret('redis_url');
 
 // Redis 클라이언트 설정
 const redisClient = createClient({ url: REDIS_URL });
