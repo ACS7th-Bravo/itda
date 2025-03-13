@@ -8,8 +8,8 @@ resources:
   - itda-configmap.yaml
   - itda-ingress.yaml
   - itda-hpa.yaml
-  - itda-networkpolicy.yaml
-  - itda-rbac.yaml
-  - itda-resourcequota.yaml
+  # - itda-networkpolicy.yaml
+  # - itda-rbac.yaml
+  # - itda-resourcequota.yaml
   - itda-secretprovider.yaml
   - itda-serviceaccount.yaml
