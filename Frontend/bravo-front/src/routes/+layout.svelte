@@ -619,7 +619,7 @@ onMount(async () => {
 
 	<div class="main-content">
 		<div class="inner-main">
-			<h1 class="typing">It Da!❤️</h1>
+			<h1 class="typing">It Da!</h1>
 			<div class="login-header" style="top: 0; right: 0; z-index: 1010; padding: 10px;">
 				{#if isLoggedIn}
 					<div class="user-info">
