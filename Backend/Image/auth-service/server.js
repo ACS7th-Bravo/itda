@@ -1,8 +1,9 @@
 
 import express from 'express';
-import mongoose from 'mongoose';
 import fs from 'fs';
 import path from 'path';
+
+
 
 // secrets 파일에서 값을 읽어오는 함수
 function readSecret(secretName) {
@@ -17,10 +18,10 @@ function readSecret(secretName) {
 
 const GOOGLE_CLIENT_ID = readSecret('google_client_id');
 const GOOGLE_CLIENT_SECRET = readSecret('google_client_secret');
-const GOOGLE_REDIRECT_URI = readSecret('google_redirect_uri'); // ex: https://it-da.site/api/google/google-callback
+const GOOGLE_REDIRECT_URI = readSecret('google_redirect_uri');
 const JWT_SECRET = readSecret('jwt_secret');
-const FRONTEND_URL = readSecret('frontend_url'); // ex: https://it-da.site
-const MONGO_URI = readSecret('mongo_uri'); // MongoDB 연결 문자열
+const FRONTEND_URL = readSecret('frontend_url');
+const AWS_REGION_DYNAMODB = readSecret('aws_region_dynamodb'); // DynamoDB 사용
 const PORT = 3001;
 
 const app = express();
@@ -60,6 +61,14 @@ mongoose.connect(MONGO_URI, { /* 옵션들 */ })
   .then(() => console.log('MongoDB connected (Auth Service)'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Auth Service running on port ${PORT}`);
-});
+
+  app.listen(PORT, () => {
+    console.log(`Search Service running on port ${PORT}`);
+    console.log(`🔹 Using DynamoDB table: ${readSecret('dynamodb_table_userss') || 'dynamo_tracks'}`);
+    try {
+      const region = AWS_REGION_DYNAMODB;
+      console.log(`🔹 AWS Region: ${region}`);
+    } catch (error) {
+      console.log('🔹 AWS Region: Unknown');
+    }
+  });
