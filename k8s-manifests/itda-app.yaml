@@ -13,7 +13,6 @@ metadata:
       translation=655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-translation
       playlist=655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-playlist
 
-    # 각 이미지별 업데이트 전략: latest
     argocd-image-updater.argoproj.io/ui.update-strategy: latest
     argocd-image-updater.argoproj.io/auth.update-strategy: latest
     argocd-image-updater.argoproj.io/search.update-strategy: latest
@@ -21,7 +20,6 @@ metadata:
     argocd-image-updater.argoproj.io/translation.update-strategy: latest
     argocd-image-updater.argoproj.io/playlist.update-strategy: latest
 
-    # Write-back 방식: Git (Image Updater가 Git 저장소에 직접 커밋)
     argocd-image-updater.argoproj.io/write-back-method: git
 spec:
   project: default
@@ -29,11 +27,15 @@ spec:
     repoURL: http://3.39.94.135:8081/bravo/itda.git
     targetRevision: HEAD
     path: k8s-manifests
+    # Kustomize 모드
+    kustomize:
+      # (옵션) namePrefix: itda-
+      namePrefix: itda-
+
   destination:
     server: https://92230E0D25BD970450A7292D7B9DC235.gr7.ap-northeast-2.eks.amazonaws.com
     namespace: argocd
 
-  # 아래 syncPolicy, etc.는 예시로 필요에 따라 설정
   syncPolicy:
     automated:
       prune: true
