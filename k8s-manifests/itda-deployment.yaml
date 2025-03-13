@@ -5,6 +5,11 @@ metadata:
   namespace: itda-fe-ns
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+    # Image Updater annotations
+    argocd-image-updater.argoproj.io/image-list: |
+      ui=655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-ui
+    argocd-image-updater.argoproj.io/ui.update-strategy: latest
+    argocd-image-updater.argoproj.io/write-back-method: git
   labels:
     app: itda-ui
 spec:
@@ -20,7 +25,6 @@ spec:
       serviceAccountName: itda-secrets-access
       containers:
         - name: itda-ui
-          # 여기서 GIT_COMMIT_HASH라는 플레이스홀더를 사용합니다.
           image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-ui:latest
           ports:
             - containerPort: 5174
@@ -57,6 +61,11 @@ metadata:
   namespace: itda-be-ns
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+    # Image Updater annotations
+    argocd-image-updater.argoproj.io/image-list: |
+      auth=655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-auth
+    argocd-image-updater.argoproj.io/auth.update-strategy: latest
+    argocd-image-updater.argoproj.io/write-back-method: git
   labels:
     app: itda-auth
 spec:
@@ -80,9 +89,9 @@ spec:
               cpu: "50m"
               memory: "128Mi"
             limits:
-              cpu: "200m"      # max 값
-              memory: "256Mi"  # max 값
-            env:
+              cpu: "200m"
+              memory: "256Mi"
+          env:
             - name: PORT
               valueFrom:
                 configMapKeyRef:
@@ -99,15 +108,15 @@ spec:
             readOnly: true
             volumeAttributes:
               secretProviderClass: "aws-secrets-itda-auth"
-          # 🟢 Liveness Probe: 항상 정상 (애플리케이션이 살아있는지만 체크)
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: 3001
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 3
+      # 프로브 설정 (예시)
+      livenessProbe:
+        httpGet:
+          path: /healthz
+          port: 3001
+        initialDelaySeconds: 30
+        periodSeconds: 15
+        timeoutSeconds: 10
+        failureThreshold: 3
 
 ---
 apiVersion: apps/v1
@@ -117,6 +126,11 @@ metadata:
   namespace: itda-be-ns
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+    # Image Updater annotations
+    argocd-image-updater.argoproj.io/image-list: |
+      search=655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-search
+    argocd-image-updater.argoproj.io/search.update-strategy: latest
+    argocd-image-updater.argoproj.io/write-back-method: git
   labels:
     app: itda-search
 spec:
@@ -130,8 +144,6 @@ spec:
         app: itda-search
     spec:
       serviceAccountName: itda-secrets-access
-      imagePullSecrets:
-        - name: aws-ecr-creds
       containers:
         - name: itda-search
           image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-search:latest
@@ -161,25 +173,22 @@ spec:
             readOnly: true
             volumeAttributes:
               secretProviderClass: "aws-secrets-itda-search"
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: 3002
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 3
-
-          # 🟢 Readiness Probe: 필수 환경 변수 존재 여부 확인
-          readinessProbe:
-            httpGet:
-              path: /ready
-              port: 3002
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 3
-
+      livenessProbe:
+        httpGet:
+          path: /healthz
+          port: 3002
+        initialDelaySeconds: 30
+        periodSeconds: 15
+        timeoutSeconds: 10
+        failureThreshold: 3
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 3002
+        initialDelaySeconds: 30
+        periodSeconds: 15
+        timeoutSeconds: 10
+        failureThreshold: 3
 
 ---
 apiVersion: apps/v1
@@ -189,6 +198,11 @@ metadata:
   namespace: itda-be-ns
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+    # Image Updater annotations
+    argocd-image-updater.argoproj.io/image-list: |
+      lyrics=655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-lyrics
+    argocd-image-updater.argoproj.io/lyrics.update-strategy: latest
+    argocd-image-updater.argoproj.io/write-back-method: git
   labels:
     app: itda-lyrics
 spec:
@@ -202,8 +216,6 @@ spec:
         app: itda-lyrics
     spec:
       serviceAccountName: itda-secrets-access
-      imagePullSecrets:
-        - name: aws-ecr-creds
       containers:
         - name: itda-lyrics
           image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-lyrics:latest
@@ -233,24 +245,23 @@ spec:
             readOnly: true
             volumeAttributes:
               secretProviderClass: "aws-secrets-itda-lyrics"
-          # 🟢 Liveness Probe: 항상 정상 (애플리케이션이 살아있는지만 체크)
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: 3003
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 3
-          # 🟢 Readiness Probe: 필수 환경 변수 존재 여부 확인
-          readinessProbe:
-            httpGet:
-              path: /ready
-              port: 3003
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 3
+      livenessProbe:
+        httpGet:
+          path: /healthz
+          port: 3003
+        initialDelaySeconds: 30
+        periodSeconds: 15
+        timeoutSeconds: 10
+        failureThreshold: 3
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 3003
+        initialDelaySeconds: 30
+        periodSeconds: 15
+        timeoutSeconds: 10
+        failureThreshold: 3
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -259,6 +270,11 @@ metadata:
   namespace: itda-be-ns
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+    # Image Updater annotations
+    argocd-image-updater.argoproj.io/image-list: |
+      translation=655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-translation
+    argocd-image-updater.argoproj.io/translation.update-strategy: latest
+    argocd-image-updater.argoproj.io/write-back-method: git
   labels:
     app: itda-translation
 spec:
@@ -272,8 +288,6 @@ spec:
         app: itda-translation
     spec:
       serviceAccountName: itda-secrets-access
-      imagePullSecrets:
-        - name: aws-ecr-creds
       containers:
         - name: itda-translation
           image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-translation:latest
@@ -303,23 +317,22 @@ spec:
             readOnly: true
             volumeAttributes:
               secretProviderClass: "aws-secrets-itda-translation"
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: 3004
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 3
-          # 🟢 Readiness Probe: 필수 환경 변수 존재 여부 확인
-          readinessProbe:
-            httpGet:
-              path: /ready
-              port: 3004
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 3
+      livenessProbe:
+        httpGet:
+          path: /healthz
+          port: 3004
+        initialDelaySeconds: 30
+        periodSeconds: 15
+        timeoutSeconds: 10
+        failureThreshold: 3
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 3004
+        initialDelaySeconds: 30
+        periodSeconds: 15
+        timeoutSeconds: 10
+        failureThreshold: 3
 
 ---
 apiVersion: apps/v1
@@ -329,6 +342,11 @@ metadata:
   namespace: itda-be-ns
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+    # Image Updater annotations
+    argocd-image-updater.argoproj.io/image-list: |
+      playlist=655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-playlist
+    argocd-image-updater.argoproj.io/playlist.update-strategy: latest
+    argocd-image-updater.argoproj.io/write-back-method: git
   labels:
     app: itda-playlist
 spec:
@@ -342,8 +360,6 @@ spec:
         app: itda-playlist
     spec:
       serviceAccountName: itda-secrets-access
-      imagePullSecrets:
-        - name: aws-ecr-creds
       containers:
         - name: itda-playlist
           image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-playlist:latest
@@ -373,27 +389,22 @@ spec:
             readOnly: true
             volumeAttributes:
               secretProviderClass: "aws-secrets-itda-playlist"
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: 3004
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 3
-          # 🟢 Readiness Probe: 필수 환경 변수 존재 여부 확인
-          readinessProbe:
-            httpGet:
-              path: /ready
-              port: 3004
-            initialDelaySeconds: 30
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 3
-          volumeMounts:
-            - name: aws-secrets
-              mountPath: "/mnt/secrets-store"
-              readOnly: true
+      livenessProbe:
+        httpGet:
+          path: /healthz
+          port: 3005
+        initialDelaySeconds: 30
+        periodSeconds: 15
+        timeoutSeconds: 10
+        failureThreshold: 3
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 3005
+        initialDelaySeconds: 30
+        periodSeconds: 15
+        timeoutSeconds: 10
+        failureThreshold: 3
 
 ---
 apiVersion: apps/v1
