@@ -20,7 +20,7 @@ function readSecret(secretName) {
 // ✅ YouTube API 키 읽기 (쉼표로 구분된 여러 개의 키)
 const YOUTUBE_API_KEYS = readSecret('youtube_api_keys').split(",");
 let currentApiKeyIndex = 0;
-let currentApiKey = youtubeApiKeys[currentApiKeyIndex];
+let currentApiKey = YOUTUBE_API_KEYS[currentApiKeyIndex];
 
 // API 키 로테이션 함수
 function rotateApiKey() {
@@ -47,9 +47,9 @@ router.get("/search", async (req, res) => {
   const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&regionCode=KR&safeSearch=none&q=${encodeURIComponent(
     searchQueryText
   )}&key=${currentApiKey}&maxResults=1`;
-  
+
   console.log(`📡 YouTube API 요청: ${url}`);
-  
+
 
   try {
     const response = await fetch(url);
