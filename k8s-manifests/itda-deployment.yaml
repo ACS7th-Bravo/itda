@@ -5,11 +5,6 @@ metadata:
   namespace: itda-fe-ns
   annotations:
     argocd.argoproj.io/sync-wave: "1"
-    # Image Updater annotations
-    argocd-image-updater.argoproj.io/image-list: |
-      ui=655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-ui
-    argocd-image-updater.argoproj.io/ui.update-strategy: latest
-    argocd-image-updater.argoproj.io/write-back-method: git
   labels:
     app: itda-ui
 spec:
@@ -62,10 +57,6 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
     # Image Updater annotations
-    argocd-image-updater.argoproj.io/image-list: |
-      auth=655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-auth
-    argocd-image-updater.argoproj.io/auth.update-strategy: latest
-    argocd-image-updater.argoproj.io/write-back-method: git
   labels:
     app: itda-auth
 spec:
@@ -126,11 +117,6 @@ metadata:
   namespace: itda-be-ns
   annotations:
     argocd.argoproj.io/sync-wave: "1"
-    # Image Updater annotations
-    argocd-image-updater.argoproj.io/image-list: |
-      search=655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-search
-    argocd-image-updater.argoproj.io/search.update-strategy: latest
-    argocd-image-updater.argoproj.io/write-back-method: git
   labels:
     app: itda-search
 spec:
@@ -198,11 +184,6 @@ metadata:
   namespace: itda-be-ns
   annotations:
     argocd.argoproj.io/sync-wave: "1"
-    # Image Updater annotations
-    argocd-image-updater.argoproj.io/image-list: |
-      lyrics=655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-lyrics
-    argocd-image-updater.argoproj.io/lyrics.update-strategy: latest
-    argocd-image-updater.argoproj.io/write-back-method: git
   labels:
     app: itda-lyrics
 spec:
@@ -270,11 +251,6 @@ metadata:
   namespace: itda-be-ns
   annotations:
     argocd.argoproj.io/sync-wave: "1"
-    # Image Updater annotations
-    argocd-image-updater.argoproj.io/image-list: |
-      translation=655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-translation
-    argocd-image-updater.argoproj.io/translation.update-strategy: latest
-    argocd-image-updater.argoproj.io/write-back-method: git
   labels:
     app: itda-translation
 spec:
@@ -342,11 +318,6 @@ metadata:
   namespace: itda-be-ns
   annotations:
     argocd.argoproj.io/sync-wave: "1"
-    # Image Updater annotations
-    argocd-image-updater.argoproj.io/image-list: |
-      playlist=655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-playlist
-    argocd-image-updater.argoproj.io/playlist.update-strategy: latest
-    argocd-image-updater.argoproj.io/write-back-method: git
   labels:
     app: itda-playlist
 spec:
