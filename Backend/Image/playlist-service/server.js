@@ -1,7 +1,4 @@
-//Image/playlist-service/server.js
-
 import express from 'express';
-import mongoose from 'mongoose';
 import fs from 'fs';
 import path from 'path';
 
@@ -16,9 +13,15 @@ function readSecret(secretName) {
   }
 }
 
-const MONGO_URI = readSecret('mongo_uri'); // MongoDB 연결 URI
-const PORT = 3005; // 포트 고정
+// AWS 관련 시크릿 값들 읽어오기
+const AWS_REGION_DYNAMODB = readSecret('aws_region_dynamodb');
+const AWS_ACCESS_KEY_ID = readSecret('aws_access_key_id');
+const AWS_SECRET_ACCESS_KEY = readSecret('aws_secret_access_key');
+const DYNAMODB_TABLE_PLAYLISTS = readSecret('dynamodb_table_playlists');
+const DYNAMODB_TABLE_USERS = readSecret('dynamodb_table_users');
 
+// 포트 고정 및 서버 설정
+const PORT = 3005;
 const app = express();
 app.use(express.json());
 
@@ -28,7 +31,7 @@ app.use((req, res, next) => {
   next();
 });
 
-
+// 플레이리스트 라우터 추가
 import playlistRouter from './routes/playlist.js';
 app.use('/api/playlist', playlistRouter);
 
@@ -37,31 +40,23 @@ app.get('/healthz', (req, res) => {
   console.log(`${new Date().toISOString()} - 🔹 Playlist Liveness: `);
   res.status(200).send('Playlist OK');
   console.log(`${new Date().toISOString()} - 🔹 Playlist Liveness: OK ✅\n`);
-
 });
 
-// 🟢 Readiness Probe: 애플리케이션이 특정 리소스(예: 환경 변수)를 정상적으로 읽을 수 있는지 확인
+// 🟢 Readiness Probe: 시크릿 값들이 정상적으로 로드되었는지 확인
 app.get('/ready', (req, res) => {
   console.log(`${new Date().toISOString()} - 🔹 Playlist Readiness: `);
-  if (MONGO_URI) {
-    res.status(200).send('Playlist READY');
-    console.log(`${new Date().toISOString()} - 🔹 Playlist Readiness: READY 😋\n`);
-  } else {
+
+  // AWS 시크릿 값들이 정상적으로 로드되었는지 확인
+  if (!AWS_REGION_DYNAMODB || !AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY || !DYNAMODB_TABLE_PLAYLISTS || !DYNAMODB_TABLE_USERS) {
     res.status(503).send('Playlist NOT READY');
     console.log(`${new Date().toISOString()} - 🔹 Playlist Readiness: NOT READY 💀\n`);
+  } else {
+    res.status(200).send('Playlist READY');
+    console.log(`${new Date().toISOString()} - 🔹 Playlist Readiness: READY 😋\n`);
   }
 });
 
-mongoose.connect(MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-}).then(() => {
-  console.log('✅ [Playlist Service] MongoDB 연결 성공');
-}).catch(err => {
-  console.error('❌ [Playlist Service] MongoDB 연결 실패:', err);
-});
-
-
+// 서버 실행
 app.listen(PORT, () => {
   console.log(`✅ [Playlist Service] 서버가 포트 ${PORT}에서 실행 중`);
 });

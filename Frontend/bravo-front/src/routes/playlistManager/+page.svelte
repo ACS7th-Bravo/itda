@@ -1,3 +1,5 @@
+<!-- /bravo-front/src/routes/playlistManager/+page.svelte -->
+
 <script>
 	import { onMount, getContext } from 'svelte';
 	import { playlistManager } from '$lib/playlistManagerStore.js';
