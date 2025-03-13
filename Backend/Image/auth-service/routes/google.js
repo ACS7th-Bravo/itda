@@ -25,9 +25,19 @@ const GOOGLE_CLIENT_SECRET = readSecret('google_client_secret');
 const GOOGLE_REDIRECT_URI = readSecret('google_redirect_uri');
 const JWT_SECRET = readSecret('jwt_secret');
 const FRONTEND_URL = readSecret('frontend_url');
+const DYNAMODB_TABLE_USERS = readSecret('dynamodb_table_users');
+const AWS_ACCESS_KEY_ID = readSecret('aws_access_key_id');
+const AWS_SECRET_ACCESS_KEY = readSecret('aws_secret_access_key');
+const AWS_REGION_DYNAMODB = readSecret('aws_region_dynamodb');
 
 const router = express.Router();
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
+
+const dynamoDb = new AWS.DynamoDB.DocumentClient({
+  region: AWS_REGION_DYNAMODB,
+  accessKeyId: AWS_ACCESS_KEY_ID,
+  secretAccessKey: AWS_SECRET_ACCESS_KEY,
+});
 /**
  * 구글 로그인 엔드포인트  
  * 클라이언트를 구글 로그인 페이지로 리다이렉트합니다.
@@ -86,22 +96,42 @@ router.get('/google-callback', async (req, res) => {
     if (!user) {
       // 새로운 사용자라면 새로 생성 후 JWT 발급 (MongoDB가 자동으로 _id를 생성합니다) 2025.02.14 플레이리스트 추가가
       jwtPayload = {
-        id: new mongoose.Types.ObjectId(), // 임시 id 생성 (나중에 user._id로 대체)
         email,
         name: payload.name,
         picture: payload.picture,
       };
       jwtToken = jwt.sign(jwtPayload, JWT_SECRET, { expiresIn: "7d" });
 
-      user = new User({ email, name: payload.name, picture: payload.picture, jwtToken });
-      await user.save();
-      console.log("✅ 새 사용자 저장됨:", user);
+     // DynamoDB에 사용자 정보 저장
+     const params = {
+      TableName: DYNAMODB_TABLE_USERS,
+      Item: {
+        email: { S: email },
+        name: { S: payload.name },
+        picture: { S: payload.picture },
+        jwtToken: { S: jwtToken },
+      },
+    };
 
-      // 실제 저장 후에는 user._id를 사용하여 JWT를 재발급합니다. 2025.02.14 플레이리스트 추가가
-      jwtPayload.id = user._id;
+      // DynamoDB에 저장
+      await dynamoDb.put(params).promise();
+      console.log("✅ 새 사용자 저장됨:", params.Item);
+
+      // 실제 저장 후에는 user._id를 사용하여 JWT를 재발급합니다.
+      jwtPayload.id = email;  // email을 사용하여 id로 설정
       jwtToken = jwt.sign(jwtPayload, JWT_SECRET, { expiresIn: "7d" });
-      user.jwtToken = jwtToken;
-      await user.save();
+      // 재발급한 JWT 토큰 다시 저장
+      const updateParams = {
+        TableName: DYNAMODB_TABLE_USERS,
+        Key: { email: { S: email } },
+        UpdateExpression: "SET jwtToken = :jwtToken",
+        ExpressionAttributeValues: {
+          ":jwtToken": { S: jwtToken },
+        },
+      };
+
+      await dynamoDb.update(updateParams).promise();
+
     } else {
       // 기존 사용자인 경우, 기존 토큰이 있다면 재사용, 없거나 만료된 경우 새 토큰 발급
       try {
@@ -121,7 +151,15 @@ router.get('/google-callback', async (req, res) => {
         };
         jwtToken = jwt.sign(jwtPayload, JWT_SECRET, { expiresIn: "7d" });
         user.jwtToken = jwtToken;
-        await user.save();
+        const params = {
+          TableName: DYNAMODB_TABLE_USERS,
+          Key: { email: { S: user.email } },
+          UpdateExpression: "SET jwtToken = :jwtToken",
+          ExpressionAttributeValues: {
+            ":jwtToken": { S: jwtToken },
+          },
+        };
+        await dynamoDb.update(params).promise();
         console.log("✅ 새 JWT 발급 및 업데이트:", jwtToken);
       }
       console.log("✅ 기존 사용자 발견:", user);
