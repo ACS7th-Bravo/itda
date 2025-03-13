@@ -58,7 +58,7 @@ app.get('/ready', (req, res) => {
 
   app.listen(PORT, () => {
     console.log(`Search Service running on port ${PORT}`);
-    console.log(`🔹 Using DynamoDB table: ${readSecret('dynamodb_table_userss') || 'dynamo_tracks'}`);
+    console.log(`🔹 Using DynamoDB table: ${readSecret('dynamodb_table_users') || 'dynamo_tracks'}`);
     try {
       const region = AWS_REGION_DYNAMODB;
       console.log(`🔹 AWS Region: ${region}`);

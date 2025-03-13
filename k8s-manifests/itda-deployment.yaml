@@ -402,3 +402,4 @@ spec:
           image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-redis:1.0
           ports:
             - containerPort: 6379
+#뿡뿡
