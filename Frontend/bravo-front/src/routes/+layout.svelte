@@ -1150,7 +1150,7 @@ onMount(async () => {
 		justify-content: space-between; /* 양쪽 정렬 */
 		align-items: center; /* 세로 중앙 정렬 */
 		padding: 10px;
-		z-index: 2;
+		z-index: 30;
 		background-color: black;
 		top:0;
 	}
