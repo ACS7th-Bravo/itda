@@ -403,4 +403,4 @@ spec:
           ports:
             - containerPort: 6379
 #MeMo7
-#다이나모 서치 다시 테스트(document client)
+#다이나모 서치 다시 테스트2차차(document client)

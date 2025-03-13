@@ -17,10 +17,10 @@ function readSecret(secretName) {
 
 // DynamoDB 및 Redis URI 불러오기
 const REDIS_URL = readSecret('redis_url');
-const AWS_REGION_DYNAMODB = readSecret('AWS_REGION_DYNAMODB');
-const AWS_ACCESS_KEY_ID = readSecret('AWS_ACCESS_KEY_ID');
-const AWS_SECRET_ACCESS_KEY = readSecret('AWS_SECRET_ACCESS_KEY');
-const DYNAMODB_TABLE_TRACKS = readSecret('DYNAMODB_TABLE_TRACKS');
+const AWS_REGION_DYNAMODB = readSecret('aws_region_dynamodb');
+const AWS_ACCESS_KEY_ID = readSecret('aws_access_key_id');
+const AWS_SECRET_ACCESS_KEY = readSecret('aws_secret_access_key');
+const DYNAMODB_TABLE_TRACKS = readSecret('dynamodb_table_tracks');
 
 // 🔹 Redis 클라이언트 설정
 const redis = createClient({
