@@ -402,5 +402,5 @@ spec:
           image: 655088038759.dkr.ecr.ap-northeast-2.amazonaws.com/itda-redis:1.0
           ports:
             - containerPort: 6379
-#MeMo
-#다이나모 로그인 5차차
+#MeMo6
+#다이나모 로그인 6차차

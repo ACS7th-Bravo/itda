@@ -6,6 +6,7 @@ import querystring from 'querystring';
 import { OAuth2Client } from 'google-auth-library';
 import fs from 'fs';
 import path from 'path';
+import AWS from 'aws-sdk';  // Import AWS SDK here
 import { User } from '../models/User.js';
 
 
