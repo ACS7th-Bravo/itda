@@ -6,6 +6,8 @@ import AWS from 'aws-sdk'; // DynamoDB 클라이언트 추가
 import fs from 'fs';
 import path from 'path';
 
+// express.Router()로 router 정의
+const router = express.Router(); 
 
 // 🔹 AWS Secrets Manager에서 환경 변수 읽는 함수
 function readSecret(secretName) {
