@@ -604,46 +604,36 @@ onMount(async () => {
 
 	<div class="main-content">
 		<div class="inner-main">
-			<h1 class="typing">It Da!</h1>
-			{#if isLoggedIn}
+			<div class="left-area">
+			  <h1 class="typing">It Da!</h1>
+			  {#if isLoggedIn}
 				<!-- ADDED: 로그인 상태일 때 inline Live 토글 스위치 -->
 				<div class="live-toggle-container">
-					<label class="toggle-switch">
-						<input type="checkbox" on:change={toggleLive} checked={liveStatus === 'on'} />
-						<span class="slider"></span>
-					</label>
-					<span class="live-text">{liveStatus === 'on' ? 'Live On' : 'Live Off'}</span>
+				  <label class="toggle-switch">
+					<input type="checkbox" on:change={toggleLive} checked={liveStatus === 'on'} />
+					<span class="slider"></span>
+				  </label>
+				  <span class="live-text">{liveStatus === 'on' ? 'Live On' : 'Live Off'}</span>
 				</div>
-			{/if}
-			<div class="login-header" style="top: 0; right: 0; z-index: 1010; padding: 10px;">
-				{#if isLoggedIn}
-					<div class="user-info">
-						<img
-							src={user.picture}
-							alt="{user.name}'s profile picture"
-							style="width:40px; height:40px; border-radius:50%;"
-						/>
-						<span>반갑습니다! {user.name} 님</span>
-						<button on:click={logout} style="margin-left: 10px;">로그아웃</button>
-						<button on:click={togglePlaylist}>
-							{showPlaylist ? '플레이리스트 숨기기' : '플레이리스트 보기'}
-						</button>
-					</div>
-				{:else}
-				<!--===== TEST LOGIN 버튼 추가 시작 =====--> 
-          <!-- <button on:click={simulateLogin} style="background: #ff9800; color: white; padding: 8px 12px; border: none; border-radius: 4px; margin-right: 10px;">
-            개발자님 전용 버튼
-          </button> -->
-          <!--===== TEST LOGIN 버튼 추가 시작 =====-->
-					<button
-						on:click={() =>
-							(window.location.href = `${backendUrl}/api/google/google-login?prompt=select_account`)}
-							>
-						구글 로그인
-					</button>
-				{/if}
+			  {/if}
 			</div>
-		</div>
+			<div class="login-header" style="top: 0; right: 0; z-index: 1010; padding: 10px;">
+			  {#if isLoggedIn}
+				<div class="user-info">
+				  <img src={user.picture} alt="{user.name}'s profile picture" style="width:40px; height:40px; border-radius:50%;" />
+				  <span>반갑습니다! {user.name} 님</span>
+				  <button on:click={logout} style="margin-left: 10px;">로그아웃</button>
+				  <button on:click={togglePlaylist}>
+					{showPlaylist ? '플레이리스트 숨기기' : '플레이리스트 보기'}
+				  </button>
+				</div>
+			  {:else}
+				<button on:click={() => (window.location.href = `${backendUrl}/api/google/google-login?prompt=select_account`)}>
+				  구글 로그인
+				</button>
+			  {/if}
+			</div>
+		  </div>
 		<slot />
 	</div>
 
