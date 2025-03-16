@@ -341,14 +341,11 @@
 		document.body.appendChild(script);
 	}
 
-	// ADDED: Socket.io 클라이언트 연결 (라이브 스트리밍 기능)
-	// ADDED: --- START Socket.io 추가 ---
-	import { io } from 'socket.io-client';
+	// === 변경된 부분: Socket.io 클라이언트 연결 (동적 임포트 사용) ===
 	let socket;
-	onMount(() => {
-		// ALB를 통해서 backendUrl로 socket.io 연결 (기존 backendUrl 그대로 사용)
+	onMount(async () => {
+		const { io } = await import('socket.io-client'); // 동적 임포트
 		socket = io(backendUrl, { transports: ['websocket'] });
-		// 만약 로그인 상태이며 live 토글이 on이면 liveOn 이벤트 전송
 		if (isLoggedIn && liveStatus === 'on') {
 			socket.emit('liveOn', { user, track: $currentTrack, currentTime });
 		}
@@ -363,7 +360,7 @@
 			socket.emit('liveOff', { user });
 		}
 	}
-	// ADDED: --- END Socket.io 추가 ---
+	// === 변경된 부분 끝 ===
 
 	// ===================== [추가된 부분: 기존 플레이리스트 목록 로드 및 드롭다운 메뉴 관련 변수/함수] =====================
 	// 새로운 변수 추가: 기존 플레이리스트 목록과 선택한 플레이리스트 ID
