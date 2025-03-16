@@ -13,8 +13,7 @@
 	import { jwtDecode } from 'jwt-decode';
 	import { playlistManager } from '$lib/playlistManagerStore.js';
 	import { playlist } from '$lib/playlistStore.js';
-		// ADDED: Switch 컴포넌트 import
-		import Switch from './Switch.svelte';
+
 
 	//MSA
 	const backendUrl = import.meta.env.VITE_BACKEND_URL
@@ -571,8 +570,11 @@ onMount(async () => {
 			}
 		}
 	}
-	// ADDED: Live 토글 상태 변수 (기본 off)
+	// ADDED: Live 토글 상태 변수 (기본 off) 및 inline 토글 함수
 	let liveStatus = 'off';
+	function toggleLive() {
+		liveStatus = liveStatus === 'on' ? 'off' : 'on';
+	}
 
 </script>
 
@@ -604,8 +606,14 @@ onMount(async () => {
 		<div class="inner-main">
 			<h1 class="typing">It Da!</h1>
 			{#if isLoggedIn}
-				<!-- ADDED: 로그인 상태일 때만 Live 토글 버튼 표시 (기본 off) -->
-				<Switch bind:value={liveStatus} label="Live" design="inner" />
+				<!-- ADDED: 로그인 상태일 때 inline Live 토글 스위치 -->
+				<div class="live-toggle-container">
+					<label class="toggle-switch">
+						<input type="checkbox" on:change={toggleLive} checked={liveStatus === 'on'} />
+						<span class="slider"></span>
+					</label>
+					<span class="live-text">{liveStatus === 'on' ? 'Live On' : 'Live Off'}</span>
+				</div>
 			{/if}
 			<div class="login-header" style="top: 0; right: 0; z-index: 1010; padding: 10px;">
 				{#if isLoggedIn}
@@ -864,7 +872,7 @@ onMount(async () => {
 	}
 
 	.main-content {
-	max-width: 1670px;
+	max-width: 100%;
 		flex-grow: 1;
 		background-color: black;
 		color: white;
@@ -1146,5 +1154,54 @@ onMount(async () => {
 		font-size: 14px;
 		/* 메시지 내용에 따라 색상을 동적으로 변경할 수 있습니다. 예: */
 		color: var(--playlist-group-message-color, green);
+	}
+		/* ADDED: Live 토글 스위치 스타일 */
+		.live-toggle-container {
+		display: inline-flex;
+		align-items: center;
+	}
+	.toggle-switch {
+		position: relative;
+		display: inline-block;
+		width: 50px;
+		height: 24px;
+	}
+	.toggle-switch input {
+		opacity: 0;
+		width: 0;
+		height: 0;
+	}
+	.slider {
+		position: absolute;
+		cursor: pointer;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background-color: #ccc;
+		transition: 0.4s;
+		border-radius: 24px;
+	}
+	.slider:before {
+		position: absolute;
+		content: "";
+		height: 20px;
+		width: 20px;
+		left: 2px;
+		bottom: 2px;
+		background-color: white;
+		transition: 0.4s;
+		border-radius: 50%;
+	}
+	input:checked + .slider {
+		background-color: #1db954;
+	}
+	input:checked + .slider:before {
+		transform: translateX(26px);
+	}
+	.live-text {
+		margin-left: 10px;
+		font-size: 16px;
+		color: #1db954;
 	}
 </style>
