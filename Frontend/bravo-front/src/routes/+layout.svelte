@@ -13,8 +13,8 @@
 	import { jwtDecode } from 'jwt-decode';
 	import { playlistManager } from '$lib/playlistManagerStore.js';
 	import { playlist } from '$lib/playlistStore.js';
-   // *** NEW: Fake user store import ***
-	//  import { fakeUser } from '$lib/fakeuserStore.js';
+		// ADDED: Switch 컴포넌트 import
+		import Switch from './Switch.svelte';
 
 	//MSA
 	const backendUrl = import.meta.env.VITE_BACKEND_URL
@@ -41,26 +41,6 @@
 		user = { email: '', name: '', picture: '' }; // 2025.02.14 플레이리스트트
 		window.location.href = '/';
 	}
-
-// 	// (임시)테스트용 로그인 함수: 실제 구글 로그인 대신 미리 정의된 사용자 정보로 로그인 상태 설정
-// 	function simulateLogin() {
-//       const fakeUserData = {
-//         email: "aws7th0324@gmail.com",
-//         name: "7th AWS",
-//         picture: "https://lh3.googleusercontent.com/a/ACg8ocKAnAGq1Y4xTX68-2CSG6Pvi1Zgsbq9BqDZP10K4tgTbIr2Bg=s96-c",
-//         jwtToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3Mzk1MjA5OTEsImV4cCI6MTc0MDEyNTc5MX0.VLHGdAVffSjDvG_ab2nas_ctCpFD98HaQURB_3QaP8Q"
-//       };
-//       localStorage.setItem('jwt_token', fakeUserData.jwtToken);  // [변경] 토큰을 로컬스토리지에 저장
-//       isLoggedIn = true;   // [변경] 로그인 상태 업데이트
-//       user = fakeUserData; // [변경] 전역 사용자 정보를 fakeUserData로 설정
-//       // *** NEW: fakeUser 스토어 업데이트 ***
-//       fakeUser.set(fakeUserData);
-// 			console.log("테스트 로그인 완료:", fakeUserData);
-//     }
-
-// 		// *** NEW: 현재 사용자 정보를 담을 컨텍스트 설정 ***
-//   // 컴포넌트 초기화 시 fakeUser 스토어를 currentUser 컨텍스트에 설정합니다.
-//   setContext('currentUser', fakeUser);
 
 	// ✅ 현재 재생 중인 트랙 정보
 	let currentTrack = writable({
@@ -591,6 +571,9 @@ onMount(async () => {
 			}
 		}
 	}
+	// ADDED: Live 토글 상태 변수 (기본 off)
+	let liveStatus = 'off';
+
 </script>
 
 <!-- 로그인/로그아웃 버튼과 사용자 정보는 오른쪽 상단에 고정 -->
@@ -620,6 +603,10 @@ onMount(async () => {
 	<div class="main-content">
 		<div class="inner-main">
 			<h1 class="typing">It Da!</h1>
+			{#if isLoggedIn}
+				<!-- ADDED: 로그인 상태일 때만 Live 토글 버튼 표시 (기본 off) -->
+				<Switch bind:value={liveStatus} label="Live" design="inner" />
+			{/if}
 			<div class="login-header" style="top: 0; right: 0; z-index: 1010; padding: 10px;">
 				{#if isLoggedIn}
 					<div class="user-info">
