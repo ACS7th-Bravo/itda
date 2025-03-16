@@ -605,17 +605,16 @@ onMount(async () => {
 	<div class="main-content">
 		<div class="inner-main">
 			<div class="left-area">
-			  <h1 class="typing">It Da!</h1>
-			  {#if isLoggedIn}
-				<!-- ADDED: 로그인 상태일 때 inline Live 토글 스위치 -->
-				<div class="live-toggle-container">
-				  <label class="toggle-switch">
-					<input type="checkbox" on:change={toggleLive} checked={liveStatus === 'on'} />
-					<span class="slider"></span>
-				  </label>
-				  <span class="live-text">{liveStatus === 'on' ? 'Live On' : 'Live Off'}</span>
-				</div>
-			  {/if}
+				<h1 class="typing">It Da!</h1>
+				{#if isLoggedIn}
+				  <div class="live-toggle-container">
+					<label class="toggle-switch">
+					  <input type="checkbox" on:change={toggleLive} checked={liveStatus === 'on'} />
+					  <span class="slider"></span>
+					</label>
+					<span class="live-text">{liveStatus === 'on' ? 'Live On' : 'Live Off'}</span>
+				  </div>
+				{/if}
 			</div>
 			<div class="login-header" style="top: 0; right: 0; z-index: 1010; padding: 10px;">
 			  {#if isLoggedIn}
@@ -1139,6 +1138,7 @@ onMount(async () => {
 		background-color: black;
 		top:0;
 	}
+	
 	.playlist-group-message {
 		margin-top: 0.5rem;
 		font-size: 14px;
@@ -1194,4 +1194,10 @@ onMount(async () => {
 		font-size: 16px;
 		color: #1db954;
 	}
+	/* .left-area에 flex를 적용해서 자식 요소(제목, 토글버튼)를 가로로 배치 */
+.left-area {
+  display: flex;
+  align-items: center; /* 세로 정렬: 가운데 정렬 */
+  gap: 10px;          /* "It Da!"와 토글 버튼 사이의 간격 */
+}
 </style>
