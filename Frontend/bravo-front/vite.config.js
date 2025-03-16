@@ -53,5 +53,10 @@ export default defineConfig({
     // allowedHosts: ['valid-elephant-separately.ngrok-free.app', 'valid-elephant-separately.ngrok-free.app:5174']
     allowedHosts: ['popular-incredibly-burro.ngrok-free.app']
     // allowedHosts: 'all'
-  }
+  },
+  build: {
+		rollupOptions: {
+			external: ['socket.io-client']
+		}
+	}
 });
