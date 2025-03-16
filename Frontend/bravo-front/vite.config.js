@@ -54,9 +54,9 @@ export default defineConfig({
     allowedHosts: ['popular-incredibly-burro.ngrok-free.app']
     // allowedHosts: 'all'
   },
-  build: {
-		rollupOptions: {
-			external: ['socket.io-client']
-		}
-	}
+  // build: {
+	// 	rollupOptions: {
+	// 		external: ['socket.io-client']
+	// 	}
+	// }
 });
