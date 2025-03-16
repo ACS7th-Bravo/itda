@@ -11,6 +11,9 @@ metadata:
     alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:655088038759:certificate/6172625f-9b76-4ef7-9e33-aaba7793db56
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
     alb.ingress.kubernetes.io/ssl-redirect: '443'
+     # ADDED: 웹소켓 연결 지원
+    alb.ingress.kubernetes.io/websocket: 'true'
+    alb.ingress.kubernetes.io/connection-idle-timeout: '3600'
 spec:
   ingressClassName: alb
   rules:
@@ -36,6 +39,9 @@ metadata:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:655088038759:certificate/6172625f-9b76-4ef7-9e33-aaba7793db56
+     # ADDED: 웹소켓 연결 지원 및 connection idle timeout 설정
+    alb.ingress.kubernetes.io/websocket: 'true'
+    alb.ingress.kubernetes.io/connection-idle-timeout: '3600'
 spec:
   ingressClassName: alb
   rules:

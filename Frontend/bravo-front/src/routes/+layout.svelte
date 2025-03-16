@@ -1,5 +1,4 @@
 <!-- /bravo-front/src/routes/+layout.svelte -->
-<!-- 구글 로그인 뚫기 (임시) 키워드로 검색색 -->
 
 <script>
 	import { fly } from 'svelte/transition';
@@ -341,8 +340,30 @@
 		script.async = true;
 		document.body.appendChild(script);
 	}
-//   // 로그인(임시) - 현재 fakeUser 스토어는 이미 currentUser 컨텍스트에 설정되어 있음
-//   setContext('fakeUser', fakeUser);
+
+	// ADDED: Socket.io 클라이언트 연결 (라이브 스트리밍 기능)
+	// ADDED: --- START Socket.io 추가 ---
+	import { io } from 'socket.io-client';
+	let socket;
+	onMount(() => {
+		// ALB를 통해서 backendUrl로 socket.io 연결 (기존 backendUrl 그대로 사용)
+		socket = io(backendUrl, { transports: ['websocket'] });
+		// 만약 로그인 상태이며 live 토글이 on이면 liveOn 이벤트 전송
+		if (isLoggedIn && liveStatus === 'on') {
+			socket.emit('liveOn', { user, track: $currentTrack, currentTime });
+		}
+		socket.on('liveSync', (data) => {
+			console.log('liveSync data:', data);
+		});
+	});
+	$: if (socket && isLoggedIn) {
+		if (liveStatus === 'on') {
+			socket.emit('liveOn', { user, track: $currentTrack, currentTime });
+		} else {
+			socket.emit('liveOff', { user });
+		}
+	}
+	// ADDED: --- END Socket.io 추가 ---
 
 	// ===================== [추가된 부분: 기존 플레이리스트 목록 로드 및 드롭다운 메뉴 관련 변수/함수] =====================
 	// 새로운 변수 추가: 기존 플레이리스트 목록과 선택한 플레이리스트 ID
@@ -588,7 +609,7 @@ onMount(async () => {
 				<li><a href="/about">About</a></li>
 				<li><a href="/hi">Hi</a></li>
 				<li><a href="/search">Search</a></li>
-				<li><a href="/song">Podcast</a></li>
+				<li><a href="/podcast">Podcast</a></li>
 			</ul>
 		</nav>
 		<h3>Library</h3>

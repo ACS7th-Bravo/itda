@@ -2,6 +2,8 @@
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
+import http from 'http';                   // 추가
+import { Server } from 'socket.io';        // 추가
 
 const app = express();
 app.use(express.json());
@@ -55,13 +57,43 @@ app.get('/ready', (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Search Service running on port ${PORT}`);
-  console.log(`🔹 Using DynamoDB table: ${readSecret('dynamodb_table_tracks') || 'dynamo_tracks'}`);
-  try {
-    const region = process.env.AWS_REGION || 'ap-northeast-2';
-    console.log(`🔹 AWS Region: ${region}`);
-  } catch (error) {
-    console.log('🔹 AWS Region: Unknown');
+// ===== 여기서부터 Socket.IO 통합 =====
+// HTTP 서버 생성 (app 대신)
+const server = http.createServer(app);
+
+// Socket.IO 서버 생성 (CORS 설정 포함)
+const io = new Server(server, {
+  cors: {
+    origin: "*",  // 실제 운영환경에서는 도메인을 제한하세요.
   }
+});
+
+// Socket.IO 연결 시, 각 클라이언트를 유저 이메일(room ID) 기준으로 분리
+io.on('connection', (socket) => {
+  console.log(`새 클라이언트 연결: ${socket.id}`);
+  
+  socket.on('liveOn', (data) => {
+    const roomId = data.user.email;  // 분리 기준: 유저 이메일
+    socket.join(roomId);
+    console.log(`라이브 시작 요청 from ${data.user.email} - room: ${roomId}`, data);
+    // 해당 room에 있는 클라이언트에게만 liveSync 이벤트 전송
+    io.to(roomId).emit('liveSync', data);
+  });
+
+  socket.on('liveOff', (data) => {
+    const roomId = data.user.email;
+    console.log(`라이브 종료 요청 from ${data.user.email} - room: ${roomId}`);
+    io.to(roomId).emit('liveSync', { user: data.user, track: null, currentTime: 0 });
+    socket.leave(roomId);
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`클라이언트 연결 해제: ${socket.id}`);
+  });
+});
+// ===== Socket.IO 통합 끝 =====
+
+// 기존 app.listen() 대신 server.listen() 사용
+server.listen(PORT, () => {
+  console.log(`Socket.IO 기능이 포함된 백엔드가 포트 ${PORT}에서 실행 중`);
 });
