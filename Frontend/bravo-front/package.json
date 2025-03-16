@@ -44,6 +44,7 @@
 		"lenis": "^1.2.3",
 		"scrolltrigger": "^1.0.1",
 		"simplex-noise": "^4.0.3",
+		"socket.io-client": "^4.8.1",
 		"svelte-inview": "^4.0.4",
 		"svelte-motion": "^0.12.2",
 		"tailwind-merge": "^3.0.2"

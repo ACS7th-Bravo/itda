@@ -1,6 +1,7 @@
 {
   "dependencies": {
-    "simplex-noise": "^4.0.3"
+    "simplex-noise": "^4.0.3",
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "svelte-preprocess": "^6.0.3"
