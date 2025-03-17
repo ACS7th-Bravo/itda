@@ -12,6 +12,8 @@
 	import { jwtDecode } from 'jwt-decode';
 	import { playlistManager } from '$lib/playlistManagerStore.js';
 	import { playlist } from '$lib/playlistStore.js';
+	import { liveUserParamStore } from '$lib/liveUserStore.js';  // 추가: 전역 스토어 임포트
+
 
 
 	//MSA
@@ -347,43 +349,38 @@ let socket;
 onMount(async () => {
     const { io } = await import('socket.io-client');
     socket = io(backendUrl, { transports: ['websocket'] });
+	
+    const urlParams = new URLSearchParams(location.search);
+    const liveUserParam = urlParams.get('liveUser');
+	console.log('liveUserParam:', liveUserParam);
+	
+    if (liveUserParam) {
+        const roomId = liveUserParam.trim().toLowerCase();
+        console.log(`🔗 클라이언트가 방 참여 요청: ${roomId}`);
+        socket.emit('joinRoom', { roomId });
 
-    await tick(); // ✅ 페이지가 완전히 렌더링된 후 실행
-
-    setTimeout(() => { // ✅ 브라우저가 URL을 갱신할 시간을 확보
-        const urlParams = new URLSearchParams(location.search);
-        const liveUserParam = urlParams.get('liveUser');
-
-        console.log('🔍 liveUserParam:', liveUserParam);
-
-        if (liveUserParam) {
-            const roomId = liveUserParam.trim().toLowerCase();
-            console.log(`🔗 클라이언트가 방 참여 요청: ${roomId}`);
-            socket.emit('joinRoom', { roomId });
-
-            // 서버에서 응답을 받을 때까지 확인
-            socket.on('roomJoined', (data) => {
-                console.log(`✅ 클라이언트가 방에 성공적으로 입장: ${data.roomId}`);
-            });
-        } else if (isLoggedIn && liveStatus === 'on' && isPlaying) {
-            const hostEmail = user.email.trim().toLowerCase();
-            socket.emit('liveOn', { 
-                user: { ...user, email: hostEmail }, 
-                track: { name: $currentTrack.name, artist: $currentTrack.artist, albumImage: $currentTrack.albumImage }
-            });
-            console.log('🎤 호스트 liveOn emit:', { user: { ...user, email: hostEmail }, track: $currentTrack });
-        }
-
-        socket.on('liveSync', (data) => {
-            console.log('📡 liveSync 이벤트 수신:', data);
-
-            if (data && data.track && data.track.streaming_id) {
-                currentTrack.set({ ...data.track });
-                currentYouTubeVideoId = data.track.streaming_id;
-                console.log('🎶 클라이언트 플레이어 업데이트:', data.track);
-            }
+        // 서버에서 응답을 받을 때까지 확인
+        socket.on('roomJoined', (data) => {
+            console.log(`✅ 클라이언트가 방에 성공적으로 입장: ${data.roomId}`);
         });
-    }, 500); // ✅ URL이 갱신될 시간을 확보
+    } else if (isLoggedIn && liveStatus === 'on' && isPlaying) {
+        const hostEmail = user.email.trim().toLowerCase();
+        socket.emit('liveOn', { 
+            user: { ...user, email: hostEmail }, 
+            track: { name: $currentTrack.name, artist: $currentTrack.artist, albumImage: $currentTrack.albumImage }
+        });
+        console.log('🎤 호스트 liveOn emit:', { user: { ...user, email: hostEmail }, track: $currentTrack });
+    }
+
+    socket.on('liveSync', (data) => {
+        console.log('📡 liveSync 이벤트 수신:', data);
+
+        if (data && data.track && data.track.streaming_id) {
+            currentTrack.set({ ...data.track });
+            currentYouTubeVideoId = data.track.streaming_id;
+            console.log('🎶 클라이언트 플레이어 업데이트:', data.track);
+        }
+    });
 });
 	$: if (socket && isLoggedIn) {
 		const urlParams = new URLSearchParams(location.search);

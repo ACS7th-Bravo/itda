@@ -2,6 +2,8 @@
 <script>
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { liveUserParamStore } from '$lib/liveUserStore.js';  // 추가: 전역 스토어 임포트
+
 	const backendUrl = import.meta.env.VITE_BACKEND_URL;
   
 	let liveStreams = [];
@@ -31,7 +33,10 @@
 	});
   
 	function goToLiveSong(liveUser) {
-	  goto(`/song?liveUser=${liveUser.email}`);
+	  if (liveUser && liveUser.email) {
+		liveUserParamStore.set(liveUser.email);
+		goto(`/song?liveUser=${liveUser.email}`);  // URL에 liveUser 값도 추가 (원하는 경우)
+	  }
 	}
 </script>
   
