@@ -468,14 +468,31 @@ $: {
     }
 }
 
+// +layout.svelte 파일에서 라이브 토글 관련 reactive 블록 수정
 $: if (socket && isLoggedIn) {
     const urlParams = new URLSearchParams(location.search);
     const liveUserParam = urlParams.get('liveUser');
     if (!liveUserParam) { // 호스트인 경우에만 emit
         if (liveStatus === 'on' && isPlaying) {
             const hostEmail = user.email.trim().toLowerCase();
-            socket.emit('liveOn', { user: { ...user, email: hostEmail }, track: $currentTrack, currentTime });
-            console.log('호스트 liveOn 재emit:', { user: { ...user, email: hostEmail }, track: $currentTrack, currentTime });
+            socket.emit('liveOn', { 
+                user: { ...user, email: hostEmail }, 
+                track: {
+                    name: $currentTrack.name,
+                    artist: $currentTrack.artist,
+                    albumImage: $currentTrack.albumImage,
+                    streaming_id: currentYouTubeVideoId  // 중요: 현재 유튜브 영상 ID 추가
+                },
+                currentTime 
+            });
+            console.log('호스트 liveOn 재emit:', { 
+                user: { ...user, email: hostEmail }, 
+                track: {
+                    ...$currentTrack, 
+                    streaming_id: currentYouTubeVideoId
+                }, 
+                currentTime 
+            });
         } else {
             socket.emit('liveOff', { user });
             console.log('호스트 liveOff emit:', { user });
