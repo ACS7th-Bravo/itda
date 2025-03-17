@@ -48,6 +48,13 @@ spec:
     - host: it-da.site
       http:
         paths:
+          - path: /socket.io
+            pathType: Prefix
+            backend:
+              service:
+                name: itda-search    # 소켓 서버가 포함된 서비스 이름 (예: itda-search)
+                port:
+                  number: 3002 
           - path: /api/google
             pathType: Prefix
             backend:
