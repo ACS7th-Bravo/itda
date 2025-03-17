@@ -347,19 +347,22 @@
 	onMount(async () => {
 		const { io } = await import('socket.io-client');
 		socket = io(backendUrl, { transports: ['websocket'] });
-		// 팟캐스트 페이지에 있을 때는 웹소켓 연결을 통한 업데이트를 막기 위해 조건을 추가 (예: liveStatus가 'on'일 때만 emit)
-		if (isLoggedIn && liveStatus === 'on' && location.pathname === '/song') {
+		// URL에 liveUser 파라미터가 있다면, 클라이언트(호스트가 아님)로 간주하고 해당 호스트의 방에 참여
+		const urlParams = new URLSearchParams(location.search);
+		const liveUserParam = urlParams.get('liveUser');
+		if (liveUserParam) {
+			socket.emit('joinRoom', { roomId: liveUserParam }); // ── 추가된 부분: joinRoom 이벤트 처리 ──
+			console.log('Joined room for host:', liveUserParam);
+		} else if (isLoggedIn && liveStatus === 'on' && isPlaying) {
+			// 호스트인 경우에만 liveOn 이벤트를 emit
 			socket.emit('liveOn', { user, track: $currentTrack, currentTime });
-			console.log('emit liveOn from layout:', { user, track: $currentTrack, currentTime });
+			console.log('emit liveOn from layout (host):', { user, track: $currentTrack, currentTime });
 		}
 		socket.on('liveSync', (data) => {
 			console.log('liveSync data received in layout:', data);
-			// ── 추가된 부분: 라이브 카드 클릭 후 받은 데이터로 전역 플레이어 업데이트 ──
-			// 만약 데이터에 track 정보와 streaming_id가 있다면 전역 플레이어 업데이트
+			// ── 추가된 부분: liveSync 이벤트 수신 후 전역 플레이어 업데이트 ──
 			if (data && data.track && data.track.streaming_id) {
-				currentTrack.update(() => ({
-					...data.track
-				}));
+				currentTrack.update(() => ({ ...data.track }));
 				currentYouTubeVideoId = data.track.streaming_id;
 				console.log('전역 플레이어 업데이트됨 (liveSync):', data.track);
 			}
@@ -367,12 +370,16 @@
 		});
 	});
 	$: if (socket && isLoggedIn) {
-		if (liveStatus === 'on' && isPlaying) {
-			socket.emit('liveOn', { user, track: $currentTrack, currentTime });
-			console.log('emit liveOn from layout:', { user, track: $currentTrack, currentTime });
-		} else {
-			socket.emit('liveOff', { user });
-			console.log('emit liveOff from layout:', { user });
+		const urlParams = new URLSearchParams(location.search);
+		const liveUserParam = urlParams.get('liveUser');
+		if (!liveUserParam) { // 호스트인 경우에만 emit
+			if (liveStatus === 'on' && isPlaying) {
+				socket.emit('liveOn', { user, track: $currentTrack, currentTime });
+				console.log('emit liveOn from layout (host):', { user, track: $currentTrack, currentTime });
+			} else {
+				socket.emit('liveOff', { user });
+				console.log('emit liveOff from layout (host):', { user });
+			}
 		}
 	}
 	// === 변경된 부분 끝 ===
