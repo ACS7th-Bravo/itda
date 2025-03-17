@@ -351,20 +351,20 @@
 		const urlParams = new URLSearchParams(location.search);
 		const liveUserParam = urlParams.get('liveUser');
 		if (liveUserParam) {
-			socket.emit('joinRoom', { roomId: liveUserParam }); // ── 추가된 부분: joinRoom 이벤트 처리 ──
-			console.log('Joined room for host:', liveUserParam);
+			socket.emit('joinRoom', { roomId: liveUserParam });
+			console.log('클라이언트트가 참여한 방:', liveUserParam);
 		} else if (isLoggedIn && liveStatus === 'on' && isPlaying) {
 			// 호스트인 경우에만 liveOn 이벤트를 emit
 			socket.emit('liveOn', { user, track: $currentTrack, currentTime });
-			console.log('emit liveOn from layout (host):', { user, track: $currentTrack, currentTime });
+			console.log('호스트 liveOn emit:', { user, track: $currentTrack, currentTime });
 		}
 		socket.on('liveSync', (data) => {
-			console.log('liveSync data received in layout:', data);
+			console.log('liveSync 수신:', data);
 			// ── 추가된 부분: liveSync 이벤트 수신 후 전역 플레이어 업데이트 ──
 			if (data && data.track && data.track.streaming_id) {
-				currentTrack.update(() => ({ ...data.track }));
+				currentTrack.set({ ...data.track });
 				currentYouTubeVideoId = data.track.streaming_id;
-				console.log('전역 플레이어 업데이트됨 (liveSync):', data.track);
+				console.log('클클라이언트 플레이어 업데이트:', data.track);
 			}
 			// ──────────────────────────────────────────────────────────────────────────
 		});
@@ -375,10 +375,10 @@
 		if (!liveUserParam) { // 호스트인 경우에만 emit
 			if (liveStatus === 'on' && isPlaying) {
 				socket.emit('liveOn', { user, track: $currentTrack, currentTime });
-				console.log('emit liveOn from layout (host):', { user, track: $currentTrack, currentTime });
+				console.log('호스트 liveOn 재emit:', { user, track: $currentTrack, currentTime });
 			} else {
 				socket.emit('liveOff', { user });
-				console.log('emit liveOff from layout (host):', { user });
+				console.log('호스트 liveOff emit:', { user });
 			}
 		}
 	}
