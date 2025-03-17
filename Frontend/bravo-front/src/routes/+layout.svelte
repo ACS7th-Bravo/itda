@@ -350,7 +350,8 @@ onMount(async () => {
 
     const urlParams = new URLSearchParams(location.search);
     const liveUserParam = urlParams.get('liveUser');
-
+	console.log('liveUserParam:', liveUserParam);
+	
     if (liveUserParam) {
         const roomId = liveUserParam.trim().toLowerCase();
         console.log(`🔗 클라이언트가 방 참여 요청: ${roomId}`);
