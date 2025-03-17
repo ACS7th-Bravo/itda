@@ -4,9 +4,9 @@ import fs from 'fs';
 import path from 'path';
 import http from 'http';                   // 추가
 import { Server } from 'socket.io';        // 추가
+import { createClient } from 'redis'; // 추가
 
-const app = express();
-app.use(express.json());
+
 
 // Secrets Manager에서 환경 변수 읽어오기 함수 (변경 없음)
 function readSecret(secretName) {
@@ -27,16 +27,26 @@ const REDIS_URL = readSecret('redis_url');
 // [변경] MONGO_URI 제거 (DynamoDB를 사용)
 const PORT = 3002;
 
+// 🔹 Redis 클라이언트 생성 및 연결 (추가)
+const redis = createClient({ url: REDIS_URL });
+redis.on('error', err => console.error('Redis Client Error', err));
+await redis.connect();
+app.locals.redis = redis; // 앱 전체에서 사용할 수 있도록 저장
+
+const app = express();
+app.use(express.json());
 
 
 // 🔹 라우트 연결
 import spotifyRouter from './routes/spotify.js';
 import youtubeRouter from './routes/youtube.js';
 import trackRouter from './routes/track.js';
+import liveRouter from './routes/live.js'; // 추가
 
 app.use('/api/spotify', spotifyRouter);
 app.use('/api/youtube', youtubeRouter);
 app.use('/api/track', trackRouter);
+app.use('/api/live', liveRouter); // 추가
 
 // 🔹 Liveness Probe
 app.get('/healthz', (req, res) => {
@@ -72,17 +82,18 @@ const io = new Server(server, {
 io.on('connection', (socket) => {
   console.log(`새 클라이언트 연결: ${socket.id}`);
   
-  socket.on('liveOn', (data) => {
-    const roomId = data.user.email;  // 분리 기준: 유저 이메일
+  socket.on('liveOn', async (data) => { // 변경됨: Redis에 저장
+    const roomId = data.user.email;  
     socket.join(roomId);
     console.log(`라이브 시작 요청 from ${data.user.email} - room: ${roomId}`, data);
-    // 해당 room에 있는 클라이언트에게만 liveSync 이벤트 전송
+    await app.locals.redis.hSet('liveSessions', roomId, JSON.stringify(data)); // 추가
     io.to(roomId).emit('liveSync', data);
   });
 
-  socket.on('liveOff', (data) => {
+  socket.on('liveOff', async (data) => { // 변경됨: Redis에서 삭제
     const roomId = data.user.email;
     console.log(`라이브 종료 요청 from ${data.user.email} - room: ${roomId}`);
+    await app.locals.redis.hDel('liveSessions', roomId); // 추가
     io.to(roomId).emit('liveSync', { user: data.user, track: null, currentTime: 0 });
     socket.leave(roomId);
   });
