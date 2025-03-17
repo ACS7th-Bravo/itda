@@ -342,22 +342,37 @@
 	}
 
 	// === 변경된 부분: Socket.io 클라이언트 연결 (동적 임포트 사용) ===
+	// ── 변경된 부분: Socket.io 클라이언트 연결 ──
 	let socket;
 	onMount(async () => {
-		const { io } = await import('socket.io-client'); // 동적 임포트
+		const { io } = await import('socket.io-client');
 		socket = io(backendUrl, { transports: ['websocket'] });
-		if (isLoggedIn && liveStatus === 'on') {
+		// 팟캐스트 페이지에 있을 때는 웹소켓 연결을 통한 업데이트를 막기 위해 조건을 추가 (예: liveStatus가 'on'일 때만 emit)
+		if (isLoggedIn && liveStatus === 'on' && location.pathname === '/song') {
 			socket.emit('liveOn', { user, track: $currentTrack, currentTime });
+			console.log('emit liveOn from layout:', { user, track: $currentTrack, currentTime });
 		}
 		socket.on('liveSync', (data) => {
-			console.log('liveSync data:', data);
+			console.log('liveSync data received in layout:', data);
+			// ── 추가된 부분: 라이브 카드 클릭 후 받은 데이터로 전역 플레이어 업데이트 ──
+			// 만약 데이터에 track 정보와 streaming_id가 있다면 전역 플레이어 업데이트
+			if (data && data.track && data.track.streaming_id) {
+				currentTrack.update(() => ({
+					...data.track
+				}));
+				currentYouTubeVideoId = data.track.streaming_id;
+				console.log('전역 플레이어 업데이트됨 (liveSync):', data.track);
+			}
+			// ──────────────────────────────────────────────────────────────────────────
 		});
 	});
 	$: if (socket && isLoggedIn) {
-		if (liveStatus === 'on') {
+		if (liveStatus === 'on' && isPlayin) {
 			socket.emit('liveOn', { user, track: $currentTrack, currentTime });
+			console.log('emit liveOn from layout:', { user, track: $currentTrack, currentTime });
 		} else {
 			socket.emit('liveOff', { user });
+			console.log('emit liveOff from layout:', { user });
 		}
 	}
 	// === 변경된 부분 끝 ===

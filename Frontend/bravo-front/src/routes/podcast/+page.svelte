@@ -24,7 +24,7 @@
 	let intervalId;
 	onMount(() => {
 	  fetchLiveSessions();
-	  intervalId = setInterval(fetchLiveSessions, 10000); // 10초마다 갱신
+	  intervalId = setInterval(fetchLiveSessions, 10000);
 	});
 	onDestroy(() => {
 	  clearInterval(intervalId);
