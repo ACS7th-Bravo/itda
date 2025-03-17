@@ -367,7 +367,7 @@
 		});
 	});
 	$: if (socket && isLoggedIn) {
-		if (liveStatus === 'on' && isPlayin) {
+		if (liveStatus === 'on' && isPlaying) {
 			socket.emit('liveOn', { user, track: $currentTrack, currentTime });
 			console.log('emit liveOn from layout:', { user, track: $currentTrack, currentTime });
 		} else {
