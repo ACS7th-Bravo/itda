@@ -104,3 +104,11 @@ spec:
                 name: itda-translation
                 port:
                   number: 3004
+          # 새로 추가: /api/live 경로
+          - path: /api/live
+            pathType: Prefix
+            backend:
+              service:
+                name: itda-search
+                port:
+                  number: 3002
