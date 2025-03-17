@@ -79,13 +79,14 @@ io.on('connection', (socket) => {
   console.log(`새 클라이언트 연결: ${socket.id}`);
 
   socket.on('joinRoom', (data) => {
-    socket.join(data.roomId);
-    console.log(`Socket ${socket.id} joined room ${data.roomId}`);
+    const roomId = data.roomId.trim().toLowerCase();
+    socket.join(roomId);
+    console.log(`Socket ${socket.id} joined room ${roomId}`);
   });
   // ────────────────────────────────────────────
 
   socket.on('liveOn', async (data) => {
-    const roomId = data.user.email;
+    const roomId = data.user.email.trim().toLowerCase();
     socket.join(roomId);
     console.log(`라이브 시작 요청 from ${data.user.email} - room: ${roomId}`, data);
     await app.locals.redis.hSet('liveSessions', roomId, JSON.stringify(data));
@@ -94,7 +95,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('liveOff', async (data) => {
-    const roomId = data.user.email;
+    const roomId = data.user.email.trim().toLowerCase();
     console.log(`라이브 종료 요청 from ${data.user.email} - room: ${roomId}`);
     await app.locals.redis.hDel('liveSessions', roomId);
     console.log(`❌ Redis 삭제: liveSessions[${roomId}] 삭제됨`);

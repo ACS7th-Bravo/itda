@@ -351,12 +351,13 @@
 		const urlParams = new URLSearchParams(location.search);
 		const liveUserParam = urlParams.get('liveUser');
 		if (liveUserParam) {
-			socket.emit('joinRoom', { roomId: liveUserParam });
-			console.log('클라이언트트가 참여한 방:', liveUserParam);
+			const roomId = liveUserParam.trim().toLowerCase();
+    socket.emit('joinRoom', { roomId });
+    console.log('클라이언트가 참여한 방:', roomId);
 		} else if (isLoggedIn && liveStatus === 'on' && isPlaying) {
-			// 호스트인 경우에만 liveOn 이벤트를 emit
-			socket.emit('liveOn', { user, track: $currentTrack, currentTime });
-			console.log('호스트 liveOn emit:', { user, track: $currentTrack, currentTime });
+			const hostEmail = user.email.trim().toLowerCase();
+    socket.emit('liveOn', { user: { ...user, email: hostEmail }, track: $currentTrack, currentTime });
+    console.log('호스트 liveOn emit:', { user: { ...user, email: hostEmail }, track: $currentTrack, currentTime });
 		}
 		socket.on('liveSync', (data) => {
 			console.log('liveSync 수신:', data);
@@ -374,8 +375,9 @@
 		const liveUserParam = urlParams.get('liveUser');
 		if (!liveUserParam) { // 호스트인 경우에만 emit
 			if (liveStatus === 'on' && isPlaying) {
-				socket.emit('liveOn', { user, track: $currentTrack, currentTime });
-				console.log('호스트 liveOn 재emit:', { user, track: $currentTrack, currentTime });
+				const hostEmail = user.email.trim().toLowerCase();
+      socket.emit('liveOn', { user: { ...user, email: hostEmail }, track: $currentTrack, currentTime });
+      console.log('호스트 liveOn 재emit:', { user: { ...user, email: hostEmail }, track: $currentTrack, currentTime })
 			} else {
 				socket.emit('liveOff', { user });
 				console.log('호스트 liveOff emit:', { user });
