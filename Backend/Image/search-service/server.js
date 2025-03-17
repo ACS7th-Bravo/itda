@@ -88,100 +88,39 @@ io.on('connection', (socket) => {
       socket.emit('roomJoined', { roomId });
   });
 
-  // server.js - liveOn 이벤트 핸들러 수정
-socket.on('liveOn', async (data) => {
-  const roomId = data.user.email.trim().toLowerCase();
-  socket.join(roomId);
-  console.log(`🎤 라이브 시작 요청 from ${data.user.email} - room: ${roomId}`);
+  socket.on('liveOn', async (data) => {
+      const roomId = data.user.email.trim().toLowerCase();
+      socket.join(roomId);
+      console.log(`🎤 라이브 시작 요청 from ${data.user.email} - room: ${roomId}`, data);
 
-  // 디버깅을 위한 로그 추가
-  if (data.track) {
-      console.log(`🎤 호스트 트랙 정보:`, {
-          track_name: data.track.name,
-          artist: data.track.artist,
-          streaming_id: data.track.streaming_id
-      });
-  }
+      // Redis에는 유저 정보 및 곡 정보만 저장 (currentTime 저장 ❌)
+      await app.locals.redis.hSet('liveSessions', roomId, JSON.stringify({
+          user: data.user,
+          track: {
+              name: data.track.name,
+              artist: data.track.artist,
+              albumImage: data.track.albumImage
+          }
+      }));
 
-  // Redis에 전체 트랙 정보 저장
-  await app.locals.redis.hSet('liveSessions', roomId, JSON.stringify({
-      user: data.user,
-      track: data.track,
-      currentTime: data.currentTime
-  }));
+      console.log(`✅ Redis에 라이브 유저 정보 저장: ${roomId}`);
 
-  console.log(`✅ Redis에 라이브 유저 정보 저장: ${roomId}`);
+      // 클라이언트에게 실시간으로 곡 정보 전송 (currentTime 포함)
+      io.to(roomId).emit('liveSync', data);
+  });
 
-  // 클라이언트에게 실시간으로 곡 정보 전송
-  io.to(roomId).emit('liveSync', data);
-});
-
-socket.on('liveOff', async (data) => {
-  if (!data || !data.user || !data.user.email) {
-      console.error('❌ 잘못된 liveOff 요청 데이터:', data);
-      return;
-  }
-  
-  const roomId = data.user.email.trim().toLowerCase();
-  console.log(`🔴 라이브 종료 요청 from ${data.user.email} - room: ${roomId}`);
-  
-  try {
+  socket.on('liveOff', async (data) => {
+      const roomId = data.user.email.trim().toLowerCase();
+      console.log(`라이브 종료 요청 from ${data.user.email} - room: ${roomId}`);
       await app.locals.redis.hDel('liveSessions', roomId);
-      console.log(`✅ Redis 삭제: liveSessions[${roomId}] 삭제됨`);
-      
-      // 방에 있는 모든 사용자에게 라이브 종료 알림
-      io.to(roomId).emit('liveSync', { 
-          user: data.user, 
-          track: null,
-          liveEnded: true 
-      });
-      
+      console.log(`❌ Redis 삭제: liveSessions[${roomId}] 삭제됨`);
+      io.to(roomId).emit('liveSync', { user: data.user, track: null });
       socket.leave(roomId);
-      console.log(`👋 방 나감: ${roomId}`);
-  } catch (error) {
-      console.error(`❌ liveOff 처리 중 오류:`, error);
-  }
-});
+  });
 
   socket.on('disconnect', () => {
       console.log(`클라이언트 연결 해제: ${socket.id}`);
   });
-
-// server.js - requestCurrentTrack 핸들러 수정
-socket.on('requestCurrentTrack', async (data) => {
-  try {
-      const roomId = data.roomId.trim().toLowerCase();
-      console.log(`🎵 클라이언트가 현재 트랙 정보 요청: ${roomId}`);
-      
-      // Redis에서 해당 룸의 라이브 세션 정보 조회
-      const sessionData = await redis.hGet('liveSessions', roomId);
-      
-      if (sessionData) {
-          const parsedData = JSON.parse(sessionData);
-          
-          // 디버깅을 위한 로그 추가
-          console.log(`🎵 트랙 정보 전송 전 검증:`, {
-              track_name: parsedData.track?.name,
-              artist: parsedData.track?.artist,
-              streaming_id: parsedData.track?.streaming_id
-          });
-          
-          // streaming_id가 없는 경우 처리할 수 있는 로직 추가
-          if (parsedData.track && !parsedData.track.streaming_id && parsedData.track.id) {
-              parsedData.track.streaming_id = parsedData.track.id;
-              console.log(`🛠️ streaming_id 복구: ${parsedData.track.id}`);
-          }
-          
-          // 요청한 클라이언트에게만 현재 트랙 정보 전송
-          socket.emit('liveSync', parsedData);
-      } else {
-          console.log(`❌ 룸 ${roomId}에 대한 라이브 세션 정보 없음`);
-          socket.emit('liveSessionNotFound', { roomId });
-      }
-  } catch (error) {
-      console.error(`❌ 트랙 정보 요청 처리 중 오류:`, error);
-  }
-});
 });
 // Socket.IO 통합 끝
 
