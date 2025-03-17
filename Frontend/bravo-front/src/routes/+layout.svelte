@@ -342,87 +342,147 @@
 		document.body.appendChild(script);
 	}
 
-// --- 소켓 관련 부분 ---
-  let socket;
-  let liveSyncInterval;
-
-  onMount(async () => {
+	// === 변경된 부분: Socket.io 클라이언트 연결 (동적 임포트 사용) ===
+	let socket;
+onMount(async () => {
     const { io } = await import('socket.io-client');
     socket = io(backendUrl, { transports: ['websocket'] });
-
-    // onMount 시점에서 URL에 liveUser 파라미터가 있는지 확인하여 joinRoom 요청
+    
+    // 페이지 렌더링 후 URL 업데이트를 기다리기 위해 tick() 후 setTimeout() 사용
     await tick();
     setTimeout(() => {
-      const urlParams = new URLSearchParams(location.search);
-      const liveUserParam = urlParams.get('liveUser');
-      console.log('liveUserParam (onMount):', liveUserParam);
-      if (liveUserParam) {
-        const roomId = liveUserParam.trim().toLowerCase();
-        console.log(`🔗 onMount: 클라이언트가 방 참여 요청: ${roomId}`);
-        socket.emit('joinRoom', { roomId });
-      } else if (isLoggedIn && liveStatus === 'on' && isPlaying) {
-        // 호스트인 경우
-        const hostEmail = user.email.trim().toLowerCase();
-        socket.emit('liveOn', {
-          user: { ...user, email: hostEmail },
-          track: { name: $currentTrack.name, artist: $currentTrack.artist, albumImage: $currentTrack.albumImage },
-          currentTime
-        });
-        console.log('🎤 Host initial liveOn emit:', { user: { ...user, email: hostEmail }, track: $currentTrack });
-      }
+        const urlParams = new URLSearchParams(location.search);
+        const liveUserParam = urlParams.get('liveUser');
+        console.log('liveUserParam:', liveUserParam);
+        
+        if (liveUserParam) {
+            const roomId = liveUserParam.trim().toLowerCase();
+            console.log(`🔗 클라이언트가 방 참여 요청: ${roomId}`);
+            socket.emit('joinRoom', { roomId });
+            // 서버에서 응답을 받을 때까지 확인
+            socket.on('roomJoined', (data) => {
+                console.log(`✅ 클라이언트가 방에 성공적으로 입장: ${data.roomId}`);
+            });
+        } else if (isLoggedIn && liveStatus === 'on' && isPlaying) {
+            const hostEmail = user.email.trim().toLowerCase();
+            socket.emit('liveOn', { 
+                user: { ...user, email: hostEmail }, 
+                track: { name: $currentTrack.name, artist: $currentTrack.artist, albumImage: $currentTrack.albumImage }
+            });
+            console.log('🎤 호스트 liveOn emit:', { user: { ...user, email: hostEmail }, track: $currentTrack });
+        }
     }, 500);
 
-    socket.on('liveSync', (data) => {
-      console.log('📡 liveSync 이벤트 수신:', data);
-      if (data && data.track && data.track.streaming_id) {
+    // /bravo-front/src/routes/+layout.svelte - onMount 내부의 socket.on('liveSync') 부분 수정
+socket.on('liveSync', (data) => {
+    console.log('📡 liveSync 이벤트 수신:', data);
+    if (data && data.track) {
         currentTrack.set({ ...data.track });
-        currentYouTubeVideoId = data.track.streaming_id;
-        console.log('🎶 클라이언트 플레이어 업데이트:', data.track);
-      }
-    });
-  });
+        
+        // streaming_id가 있는 경우에만 YouTube 플레이어 업데이트
+        if (data.track.streaming_id || data.track.id) {
+            currentYouTubeVideoId = data.track.streaming_id || data.track.id;
+            
+            // YouTube 플레이어가 이미 초기화되어 있는지 확인
+            if (youtubePlayer) {
+                youtubePlayer.loadVideoById(currentYouTubeVideoId);
+                // 서버에서 받은 currentTime이 있으면 해당 시간으로 이동
+                if (data.currentTime && data.currentTime > 0) {
+                    setTimeout(() => {
+                        youtubePlayer.seekTo(data.currentTime, true);
+                    }, 1000); // 약간의 지연을 주어 플레이어가 로드되는 시간 확보
+                }
+                isPlaying = true;
+                startProgressUpdate();
+            } else {
+                // YouTube 플레이어가 없으면 초기화
+                youtubePlayer = new YT.Player('youtube-player', {
+                    height: '0',
+                    width: '0',
+                    videoId: currentYouTubeVideoId,
+                    playerVars: {
+                        autoplay: 1,
+                        controls: 0,
+                        showinfo: 0,
+                        modestbranding: 1,
+                        loop: 0,
+                        rel: 0
+                    },
+                    events: {
+                        onReady: () => {
+                            youtubePlayer.playVideo();
+                            if (data.currentTime && data.currentTime > 0) {
+                                setTimeout(() => {
+                                    youtubePlayer.seekTo(data.currentTime, true);
+                                }, 1000);
+                            }
+                            isPlaying = true;
+                            startProgressUpdate();
+                        },
+                        onStateChange: (event) => {
+                            console.log('🎬 YouTube 플레이어 상태 변경:', event.data);
+                            if (event.data === YT.PlayerState.ENDED) {
+                                console.log('✅ 곡이 끝남! 다음 곡 자동 재생 시작...');
+                                playNextTrack();
+                            } else if (event.data === YT.PlayerState.PLAYING) {
+                                console.log('▶️ 곡 재생 중...'); 
+                                isPlaying = true;
+                                startProgressUpdate();
+                            } else if (event.data === YT.PlayerState.PAUSED) {
+                                console.log('⏸️ 곡 일시 정지됨');
+                                isPlaying = false;
+                            } else {
+                                console.log('⚠️ 알 수 없는 상태 코드:', event.data);
+                                clearInterval(interval);
+                            }
+                        }
+                    }
+                });
+            }
+            console.log('🎶 클라이언트 플레이어 업데이트:', data.track);
+        } else {
+            console.warn('⚠️ streaming_id가 없는 트랙 데이터:', data.track);
+        }
+    }
+});
+});
 
-  // Reactive block 1: URL의 liveUser 파라미터 변화 감지 후 joinRoom 재요청
-  $: {
+// /bravo-front/src/routes/+layout.svelte - URL 파라미터 감지 로직 수정
+$: {
     const liveUserParam = $page.url.searchParams.get('liveUser');
     console.log('liveUserParam (reactive):', liveUserParam);
-    if (liveUserParam) {
-      const roomId = liveUserParam.trim().toLowerCase();
-      console.log(`🔗 Reactive: 클라이언트가 방 참여 요청: ${roomId}`);
-      socket && socket.emit('joinRoom', { roomId });
+    if (liveUserParam && socket) {
+        const roomId = liveUserParam.trim().toLowerCase();
+        console.log(`🔗 Reactive: 클라이언트가 방 참여 요청: ${roomId}`);
+        socket.emit('joinRoom', { roomId });
+        
+        // 이전에 받은 룸 조인 이벤트 리스너가 중복 등록되지 않도록 제거
+        socket.off('roomJoined');
+        
+        // 새로운 룸 조인 이벤트 리스너 등록
+        socket.on('roomJoined', (data) => {
+            console.log(`✅ 클라이언트가 방에 성공적으로 입장: ${data.roomId}`);
+            // 방에 입장 후 호스트의 현재 트랙 정보 요청
+            socket.emit('requestCurrentTrack', { roomId });
+        });
     }
-  }
+}
 
-  // Reactive block 2: 호스트일 경우 주기적으로 liveSync 이벤트 전송
-  $: if (socket && isLoggedIn && !($page.url.searchParams.get('liveUser'))) {
-    if (liveStatus === 'on' && isPlaying) {
-      const hostEmail = user.email.trim().toLowerCase();
-      // 초기 liveOn emit (보장)
-      socket.emit('liveOn', {
-        user: { ...user, email: hostEmail },
-        track: { name: $currentTrack.name, artist: $currentTrack.artist, albumImage: $currentTrack.albumImage },
-        currentTime
-      });
-      console.log('🎤 Host liveOn 재emit (initial):', { user: { ...user, email: hostEmail }, track: $currentTrack, currentTime });
-      if (!liveSyncInterval) {
-        liveSyncInterval = setInterval(() => {
-          if (isPlaying) {
-            socket.emit('liveSync', {
-              user: { ...user, email: hostEmail },
-              track: { name: $currentTrack.name, artist: $currentTrack.artist, albumImage: $currentTrack.albumImage },
-              currentTime
-            });
-            console.log('🎤 주기적 liveSync 전송:', { track: $currentTrack, currentTime });
-          }
-        }, 3000);
-      }
-    } else {
-      socket.emit('liveOff', { user });
-      clearInterval(liveSyncInterval);
-      liveSyncInterval = null;
+$: if (socket && isLoggedIn) {
+    const urlParams = new URLSearchParams(location.search);
+    const liveUserParam = urlParams.get('liveUser');
+    if (!liveUserParam) { // 호스트인 경우에만 emit
+        if (liveStatus === 'on' && isPlaying) {
+            const hostEmail = user.email.trim().toLowerCase();
+            socket.emit('liveOn', { user: { ...user, email: hostEmail }, track: $currentTrack, currentTime });
+            console.log('호스트 liveOn 재emit:', { user: { ...user, email: hostEmail }, track: $currentTrack, currentTime });
+        } else {
+            socket.emit('liveOff', { user });
+            console.log('호스트 liveOff emit:', { user });
+        }
     }
-  }
-  // --- 여기까지 소켓 관련 reactive 코드 ---
+}
+	// === 변경된 부분 끝 ===
 
 	// ===================== [추가된 부분: 기존 플레이리스트 목록 로드 및 드롭다운 메뉴 관련 변수/함수] =====================
 	// 새로운 변수 추가: 기존 플레이리스트 목록과 선택한 플레이리스트 ID

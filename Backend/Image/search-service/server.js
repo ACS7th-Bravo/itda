@@ -95,13 +95,10 @@ io.on('connection', (socket) => {
 
       // Redis에는 유저 정보 및 곡 정보만 저장 (currentTime 저장 ❌)
       await app.locals.redis.hSet('liveSessions', roomId, JSON.stringify({
-          user: data.user,
-          track: {
-              name: data.track.name,
-              artist: data.track.artist,
-              albumImage: data.track.albumImage
-          }
-      }));
+        user: data.user,
+        track: data.track,  // 전체 트랙 정보 저장
+        currentTime: data.currentTime // 현재 재생 시간도 저장
+    }));
 
       console.log(`✅ Redis에 라이브 유저 정보 저장: ${roomId}`);
 
@@ -121,6 +118,30 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
       console.log(`클라이언트 연결 해제: ${socket.id}`);
   });
+
+  // server.js - io.on('connection', (socket) => { ... 내부에 추가
+socket.on('requestCurrentTrack', async (data) => {
+  try {
+      const roomId = data.roomId.trim().toLowerCase();
+      console.log(`🎵 클라이언트가 현재 트랙 정보 요청: ${roomId}`);
+      
+      // Redis에서 해당 룸의 라이브 세션 정보 조회
+      const sessionData = await redis.hGet('liveSessions', roomId);
+      
+      if (sessionData) {
+          const parsedData = JSON.parse(sessionData);
+          console.log(`🎵 트랙 정보 전송: ${roomId}`, JSON.stringify(parsedData));
+          
+          // 요청한 클라이언트에게만 현재 트랙 정보 전송
+          socket.emit('liveSync', parsedData);
+      } else {
+          console.log(`❌ 룸 ${roomId}에 대한 라이브 세션 정보 없음`);
+          socket.emit('liveSessionNotFound', { roomId });
+      }
+  } catch (error) {
+      console.error(`❌ 트랙 정보 요청 처리 중 오류:`, error);
+  }
+});
 });
 // Socket.IO 통합 끝
 
