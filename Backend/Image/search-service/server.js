@@ -116,14 +116,32 @@ socket.on('liveOn', async (data) => {
   io.to(roomId).emit('liveSync', data);
 });
 
-  socket.on('liveOff', async (data) => {
-      const roomId = data.user.email.trim().toLowerCase();
-      console.log(`라이브 종료 요청 from ${data.user.email} - room: ${roomId}`);
+socket.on('liveOff', async (data) => {
+  if (!data || !data.user || !data.user.email) {
+      console.error('❌ 잘못된 liveOff 요청 데이터:', data);
+      return;
+  }
+  
+  const roomId = data.user.email.trim().toLowerCase();
+  console.log(`🔴 라이브 종료 요청 from ${data.user.email} - room: ${roomId}`);
+  
+  try {
       await app.locals.redis.hDel('liveSessions', roomId);
-      console.log(`❌ Redis 삭제: liveSessions[${roomId}] 삭제됨`);
-      io.to(roomId).emit('liveSync', { user: data.user, track: null });
+      console.log(`✅ Redis 삭제: liveSessions[${roomId}] 삭제됨`);
+      
+      // 방에 있는 모든 사용자에게 라이브 종료 알림
+      io.to(roomId).emit('liveSync', { 
+          user: data.user, 
+          track: null,
+          liveEnded: true 
+      });
+      
       socket.leave(roomId);
-  });
+      console.log(`👋 방 나감: ${roomId}`);
+  } catch (error) {
+      console.error(`❌ liveOff 처리 중 오류:`, error);
+  }
+});
 
   socket.on('disconnect', () => {
       console.log(`클라이언트 연결 해제: ${socket.id}`);
@@ -163,6 +181,7 @@ socket.on('requestCurrentTrack', async (data) => {
   } catch (error) {
       console.error(`❌ 트랙 정보 요청 처리 중 오류:`, error);
   }
+});
 });
 // Socket.IO 통합 끝
 
