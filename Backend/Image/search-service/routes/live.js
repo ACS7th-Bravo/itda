@@ -7,6 +7,7 @@ router.get('/', async (req, res) => {
   try {
     const redis = req.app.locals.redis; // server.js에 설정된 Redis 인스턴스 사용
     const liveSessions = await redis.hGetAll('liveSessions');
+    console.log(`Redis에서 가져온 liveSessions: ${JSON.stringify(liveSessions)}`); // 추가 로그
     // Redis 해시의 값들을 JSON 파싱
     const sessions = Object.keys(liveSessions).map(key => JSON.parse(liveSessions[key]));
     res.json(sessions);

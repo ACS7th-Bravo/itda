@@ -2,9 +2,9 @@
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
-import http from 'http';                   // 추가
-import { Server } from 'socket.io';        // 추가
-import { createClient } from 'redis'; // 추가
+import http from 'http';                   
+import { Server } from 'socket.io';        
+import { createClient } from 'redis'; 
 
 
 
@@ -24,8 +24,10 @@ const SPOTIFY_CLIENT_ID = readSecret('spotify_client_id');
 const SPOTIFY_CLIENT_SECRET = readSecret('spotify_client_secret');
 const YOUTUBE_API_KEYS = readSecret('youtube_api_keys');
 const REDIS_URL = readSecret('redis_url'); 
-// [변경] MONGO_URI 제거 (DynamoDB를 사용)
 const PORT = 3002;
+
+const app = express();
+app.use(express.json());
 
 // 🔹 Redis 클라이언트 생성 및 연결 (추가)
 const redis = createClient({ url: REDIS_URL });
@@ -33,8 +35,7 @@ redis.on('error', err => console.error('Redis Client Error', err));
 await redis.connect();
 app.locals.redis = redis; // 앱 전체에서 사용할 수 있도록 저장
 
-const app = express();
-app.use(express.json());
+
 
 
 // 🔹 라우트 연결
@@ -87,6 +88,7 @@ io.on('connection', (socket) => {
     socket.join(roomId);
     console.log(`라이브 시작 요청 from ${data.user.email} - room: ${roomId}`, data);
     await app.locals.redis.hSet('liveSessions', roomId, JSON.stringify(data)); // 추가
+    console.log(`✅ Redis 저장: liveSessions[${roomId}] = ${JSON.stringify(data)}`); // 추가 로그
     io.to(roomId).emit('liveSync', data);
   });
 
@@ -94,6 +96,7 @@ io.on('connection', (socket) => {
     const roomId = data.user.email;
     console.log(`라이브 종료 요청 from ${data.user.email} - room: ${roomId}`);
     await app.locals.redis.hDel('liveSessions', roomId); // 추가
+    console.log(`❌ Redis 삭제: liveSessions[${roomId}] 삭제됨`); // 추가 로그
     io.to(roomId).emit('liveSync', { user: data.user, track: null, currentTime: 0 });
     socket.leave(roomId);
   });
