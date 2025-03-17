@@ -9,7 +9,7 @@
     // 라이브 세션 정보를 백엔드 API (/api/live)에서 가져오는 함수
     async function fetchLiveSessions() {
       try {
-       const res = await fetch(${backendUrl}/api/live);
+       const res = await fetch(`${backendUrl}/api/live`);
        if (res.ok) {
          liveStreams = await res.json();
          console.log('Fetched live sessions:', liveStreams);
@@ -31,7 +31,7 @@
     });
 
     function goToLiveSong(liveUser) {
-      goto(/song?liveUser=${liveUser.email});
+      goto(`/song?liveUser=${liveUser.email}`);
     }
  </script>
 
