@@ -6,7 +6,7 @@
   
 	let liveStreams = [];
   
-	// 추가: 라이브 세션 정보를 백엔드 API (/api/live)에서 가져오는 함수
+	// 라이브 세션 정보를 백엔드 API (/api/live)에서 가져오는 함수
 	async function fetchLiveSessions() {
 	  try {
 		const res = await fetch(`${backendUrl}/api/live`);
@@ -33,9 +33,9 @@
 	function goToLiveSong(liveUser) {
 	  goto(`/song?liveUser=${liveUser.email}`);
 	}
-  </script>
+</script>
   
-  <div class="podcast-page">
+<div class="podcast-page">
 	<h1>Live Podcasts</h1>
 	{#if liveStreams.length > 0}
 	  <div class="live-cards">
@@ -44,7 +44,8 @@
 			<img src={stream.user.picture} alt="{stream.user.name}" class="live-profile" />
 			<div class="live-info">
 			  <h3>{stream.user.name}</h3>
-			  <p>{stream.currentTrack.name} - {stream.currentTrack.artist}</p>
+			  <!-- 수정: currentTrack -> track -->
+			  <p>{stream.track.name} - {stream.track.artist}</p>
 			</div>
 		  </div>
 		{/each}
@@ -52,9 +53,9 @@
 	{:else}
 	  <p>현재 라이브 스트림이 없습니다.</p>
 	{/if}
-  </div>
+</div>
   
-  <style>
+<style>
 	.podcast-page {
 	  padding: 20px;
 	  background: #111;
@@ -97,5 +98,4 @@
 	  font-size: 14px;
 	  color: #aaa;
 	}
-  </style>
-  
+</style>
