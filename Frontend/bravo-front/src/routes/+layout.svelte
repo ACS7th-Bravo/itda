@@ -342,34 +342,43 @@
 	}
 
 	// === 변경된 부분: Socket.io 클라이언트 연결 (동적 임포트 사용) ===
-	// ── 변경된 부분: Socket.io 클라이언트 연결 ──
-	let socket;
-	onMount(async () => {
-		const { io } = await import('socket.io-client');
-		socket = io(backendUrl, { transports: ['websocket'] });
-		// URL에 liveUser 파라미터가 있다면, 클라이언트(호스트가 아님)로 간주하고 해당 호스트의 방에 참여
-		const urlParams = new URLSearchParams(location.search);
-		const liveUserParam = urlParams.get('liveUser');
-		if (liveUserParam) {
-			const roomId = liveUserParam.trim().toLowerCase();
-    socket.emit('joinRoom', { roomId });
-    console.log('클라이언트가 참여한 방:', roomId);
-		} else if (isLoggedIn && liveStatus === 'on' && isPlaying) {
-			const hostEmail = user.email.trim().toLowerCase();
-    socket.emit('liveOn', { user: { ...user, email: hostEmail }, track: $currentTrack, currentTime });
-    console.log('호스트 liveOn emit:', { user: { ...user, email: hostEmail }, track: $currentTrack, currentTime });
-		}
-		socket.on('liveSync', (data) => {
-			console.log('liveSync 수신:', data);
-			// ── 추가된 부분: liveSync 이벤트 수신 후 전역 플레이어 업데이트 ──
-			if (data && data.track && data.track.streaming_id) {
-				currentTrack.set({ ...data.track });
-				currentYouTubeVideoId = data.track.streaming_id;
-				console.log('클클라이언트 플레이어 업데이트:', data.track);
-			}
-			// ──────────────────────────────────────────────────────────────────────────
-		});
-	});
+	// === 변경된 부분: Socket.io 클라이언트 연결 (동적 임포트 사용) ===
+let socket;
+onMount(async () => {
+    const { io } = await import('socket.io-client');
+    socket = io(backendUrl, { transports: ['websocket'] });
+
+    const urlParams = new URLSearchParams(location.search);
+    const liveUserParam = urlParams.get('liveUser');
+
+    if (liveUserParam) {
+        const roomId = liveUserParam.trim().toLowerCase();
+        console.log(`🔗 클라이언트가 방 참여 요청: ${roomId}`);
+        socket.emit('joinRoom', { roomId });
+
+        // 서버에서 응답을 받을 때까지 확인
+        socket.on('roomJoined', (data) => {
+            console.log(`✅ 클라이언트가 방에 성공적으로 입장: ${data.roomId}`);
+        });
+    } else if (isLoggedIn && liveStatus === 'on' && isPlaying) {
+        const hostEmail = user.email.trim().toLowerCase();
+        socket.emit('liveOn', { 
+            user: { ...user, email: hostEmail }, 
+            track: { name: $currentTrack.name, artist: $currentTrack.artist, albumImage: $currentTrack.albumImage }
+        });
+        console.log('🎤 호스트 liveOn emit:', { user: { ...user, email: hostEmail }, track: $currentTrack });
+    }
+
+    socket.on('liveSync', (data) => {
+        console.log('📡 liveSync 이벤트 수신:', data);
+
+        if (data && data.track && data.track.streaming_id) {
+            currentTrack.set({ ...data.track });
+            currentYouTubeVideoId = data.track.streaming_id;
+            console.log('🎶 클라이언트 플레이어 업데이트:', data.track);
+        }
+    });
+});
 	$: if (socket && isLoggedIn) {
 		const urlParams = new URLSearchParams(location.search);
 		const liveUserParam = urlParams.get('liveUser');
