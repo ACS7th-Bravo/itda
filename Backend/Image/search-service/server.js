@@ -5,6 +5,8 @@ import path from 'path';
 import http from 'http';                   
 import { Server } from 'socket.io';        
 import { createClient } from 'redis'; 
+import crypto from 'crypto'; // 추가된 import
+
 
 
 
@@ -71,11 +73,13 @@ app.get('/ready', (req, res) => {
 // UUID 생성 함수 추가
 // ===== 추가된 부분 시작 =====
 function generateUUID() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
+  // Node.js v14.17.0 이상에서는 crypto.randomUUID() 사용 가능
+  if (typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  
+  // 하위 버전 Node.js 지원
+  return crypto.randomBytes(16).toString('hex').match(/.{1,8}/g).join('-');
 }
 
 // 고유한 roomId 생성 함수
@@ -93,7 +97,6 @@ async function generateUniqueRoomId(redis) {
   
   return roomId;
 }
-
 // Socket.IO 통합 시작
 const server = http.createServer(app);
 const io = new Server(server, {
