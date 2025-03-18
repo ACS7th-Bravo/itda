@@ -316,7 +316,7 @@ $: translatedLines = typeof translatedLyrics === 'string' ? translatedLyrics.spl
 	.highlight {
 		/* color: var(--highlight-color, #1db954); */
 		color: #1db954;
-		font-size: 1.4rem;
+		font-size: 1.6rem;
 		/* color: white; */
 		font-weight: bold;
 		/* background: rgba(255, 255, 255, 0.3); */
@@ -341,7 +341,7 @@ $: translatedLines = typeof translatedLyrics === 'string' ? translatedLyrics.spl
 
 	.lyrics-content {
 		white-space: pre-line;
-		font-size: 1.3rem;
+		font-size: 1.4rem;
 		transition: opacity 0.3s ease;
 	}
 
