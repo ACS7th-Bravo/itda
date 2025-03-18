@@ -277,7 +277,7 @@ $: translatedLines = typeof translatedLyrics === 'string' ? translatedLyrics.spl
 	export { requestTranslation };
 </script>
 
-<!-- 가사 영역 -->
+<!-- 가사 영역 그치치-->
 <div class="lyrics-container" bind:this={lyricsContainer}>
 	{#if parsedLyrics}
 		{#each parsedLyrics as line, i}
