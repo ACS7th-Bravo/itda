@@ -6,6 +6,7 @@ import { Track } from '../models/Track.js';
 import { createClient } from 'redis';
 import fs from 'fs';
 import path from 'path';
+import AWS from 'aws-sdk';  // CHANGE: AWS SDK를 사용하여 DynamoDB DocumentClient 설정
 
 
 
@@ -27,11 +28,22 @@ const LRCLIB_API_BASE = readSecret('lrclib_api_base');
 const MUSIXMATCH_API_KEY = readSecret('musixmatch_api_key');
 const MUSIXMATCH_API_HOST = readSecret('musixmatch_api_host');
 const REDIS_URL = readSecret('redis_url');
+const AWS_REGION_DYNAMODB = readSecret('aws_region_dynamodb');
+const AWS_ACCESS_KEY_ID = readSecret('aws_access_key_id');
+const AWS_SECRET_ACCESS_KEY = readSecret('aws_secret_access_key');
+const DYNAMODB_TABLE_TRACKS = readSecret('dynamo_table_tracks');
 
 // Redis 클라이언트 설정
 const redisClient = createClient({ url: REDIS_URL });
 redisClient.on('error', err => console.error('Redis Client Error', err));
 await redisClient.connect();
+
+// CHANGE: DynamoDB DocumentClient 생성 (mongoDB 대신 사용)
+const dynamoDb = new AWS.DynamoDB.DocumentClient({
+  region: AWS_REGION_DYNAMODB,
+  accessKeyId: AWS_ACCESS_KEY_ID,
+  secretAccessKey: AWS_SECRET_ACCESS_KEY,
+});
 
 /**
  * 문자열 정리 함수 (필요시 확장 가능)
@@ -177,16 +189,20 @@ router.get('/', async (req, res) => {
 
   if (track_id) {
     try {
-      const trackDoc = await Track.findOne({ track_id });
-      if (trackDoc && trackDoc.plain_lyrics && trackDoc.parsed_lyrics) {
-        console.log("✅ [DB] MongoDB에서 가사를 불러왔습니다.");
+      const params = {
+        TableName: DYNAMODB_TABLE_TRACKS,
+        Key: { track_id }  // CHANGE: MongoDB 조회를 DynamoDB get으로 대체
+      };
+      const dbResult = await dynamoDb.get(params).promise();
+      if (dbResult.Item && dbResult.Item.plain_lyrics && dbResult.Item.parsed_lyrics) {
+        console.log("✅ [DB] DynamoDB에서 가사를 불러왔습니다.");
         const responseData = {
           song,
           artist,
           album,
           duration,
-          lyrics: trackDoc.parsed_lyrics,
-          parsedLyrics: trackDoc.parsed_lyrics
+          lyrics: dbResult.Item.parsed_lyrics, // parsedLyrics를 그대로 사용
+          parsedLyrics: dbResult.Item.parsed_lyrics
         };
         // Redis에 저장 (TTL: 24시간)
         await redisClient.setEx(cacheKey, 86400, JSON.stringify(responseData));
@@ -260,12 +276,19 @@ router.get('/', async (req, res) => {
   // MongoDB에 저장/업데이트
   if (track_id) {
     try {
-      await Track.findOneAndUpdate(
-        { track_id },
-        { plain_lyrics: plainLyrics, parsed_lyrics: result.length > 0 ? result : null },
-        { upsert: true }
-      );
-      console.log("✅ [DB] DB에 가사 저장/업데이트 완료.");
+      const updateParams = {
+        TableName: DYNAMODB_TABLE_TRACKS,
+        Key: { track_id },
+        UpdateExpression: "set plain_lyrics = :plain, parsed_lyrics = :parsed, updatedAt = :updated",
+        ExpressionAttributeValues: {
+          ":plain": plainLyrics,
+          ":parsed": result.length > 0 ? result : null,
+          ":updated": new Date().toISOString()
+        },
+        ReturnValues: "ALL_NEW"
+      };
+      const updateResult = await dynamoDb.update(updateParams).promise();
+      console.log("✅ [DB] DynamoDB에 가사 저장/업데이트 완료:", updateResult.Attributes);
     } catch (err) {
       console.error("❌ [DB] MongoDB 업데이트 오류:", err);
     }
