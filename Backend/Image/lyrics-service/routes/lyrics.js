@@ -209,7 +209,7 @@ router.get('/', async (req, res) => {
         return res.json(responseData);
       }
     } catch (err) {
-      console.error("❌ [DB] MongoDB 조회 오류:", err);
+      console.error("❌ [DB] DynamoDB 조회 오류:", err);
     }
     console.log("DB에 저장된 가사가 없습니다. 외부 API로 가사를 불러옵니다.");
   }
