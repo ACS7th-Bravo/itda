@@ -1,8 +1,7 @@
 // /bravo-front/src/lib/trackPlayer.js
 import { get } from 'svelte/store';
 
-// .env 파일에 설정된 백엔드 URL을 사용합니다.
-// 만약 환경변수가 없다면 기본값 http://localhost:3001 을 사용합니다.
+
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
 // [추가된 부분] : DB에서 streaming_id를 가져오는 함수
@@ -59,7 +58,7 @@ export async function getYouTubeVideo(trackName, artistName) {
 // ✅ 트랙 재생 함수
 export async function playTrack(track, index) {
 	if (!localStorage.getItem('jwt_token')) {
-		alert('로그인 후 음악을 재생할 수 있습니다.');
+		alert('😙 로그인 후 음악을 재생할 수 있습니다.');
 		return;
 	}
 
@@ -97,6 +96,6 @@ export async function playTrack(track, index) {
 	if (videoId) {
 		window.dispatchEvent(new CustomEvent('playTrack', { detail: { videoId, track, index } }));
 	} else {
-		alert('❌ YouTube에서 영상을 찾을 수 없습니다.');
+		alert('😓 현재 지원하지 않는 곡입니다.');
 	}
 }
