@@ -351,6 +351,16 @@ let previousTrackName = ''; // 이전 트랙 이름 저장 변수
 let previousTrackArtist = ''; // 이전 아티스트 이름 저장 변수
 let previousTrackId = ''; // 이전 트랙 ID 저장 변수
 // ===== 추가된 부분 끝 =====
+// ===== 추가된 부분 시작 =====
+// 호스트가 새로 참여한 클라이언트에 대한 동기화 재시도 타이머
+let syncRetryTimers = new Map(); // clientId -> timerID
+
+// 최대 재시도 횟수 및 간격 (밀리초)
+const MAX_SYNC_RETRY = 3;
+const SYNC_RETRY_INTERVAL = 5000;
+
+// 호스트인지 여부
+let isLiveHost = false;
 
 onMount(async () => {
   const { io } = await import('socket.io-client');
@@ -375,20 +385,163 @@ onMount(async () => {
   // 서버에서 생성된 roomId 수신
   socket.on('roomCreated', (data) => {
     console.log(`✅ 새 룸 생성됨: ${data.roomId}`);
-    currentRoomId = data.roomId;
+	currentRoomId = data.roomId;
+    isLiveHost = true;
   });
 
   socket.on('liveSync', (data) => {
     console.log('📡 liveSync 이벤트 수신:', data);
 
-    if (data && data.track && data.track.streaming_id) {
-      currentTrack.set({ ...data.track });
-      currentYouTubeVideoId = data.track.streaming_id;
-      console.log('🎶 클라이언트 플레이어 업데이트:', data.track);
+    if (data && data.track) {
+      // 곡 정보 및 플레이어 업데이트
+      if (data.track.streaming_id) {
+        currentTrack.update((t) => ({
+          ...t,
+          ...data.track,
+          albumImage: data.track.albumImage || '/default-album.png'
+        }));
+        
+        // 새 곡 또는 초기 동기화인 경우 YouTube 플레이어 업데이트
+        if (data.initialSync && data.currentTime > 0) {
+          // 특정 시간부터 재생 시작
+          if (youtubePlayer) {
+            youtubePlayer.loadVideoById({
+              videoId: data.track.streaming_id,
+              startSeconds: data.currentTime
+            });
+            isPlaying = true;
+            startProgressUpdate();
+          } else {
+            // 플레이어가 없는 경우 새로 생성 (초기 동기화에서만 발생할 수 있음)
+            youtubePlayer = new YT.Player('youtube-player', {
+              height: '0',
+              width: '0',
+              videoId: data.track.streaming_id,
+              playerVars: {
+                autoplay: 1,
+                controls: 0,
+                showinfo: 0,
+                modestbranding: 1,
+                loop: 0,
+                rel: 0,
+                start: Math.floor(data.currentTime)
+              },
+              events: {
+                onReady: () => {
+                  youtubePlayer.playVideo();
+                  if (data.currentTime > 0) {
+                    youtubePlayer.seekTo(data.currentTime, true);
+                  }
+                  startProgressUpdate();
+                },
+                onStateChange: (event) => {
+                  if (event.data === YT.PlayerState.PLAYING) {
+                    console.log('▶️ 곡 재생 중...');
+                    isPlaying = true;
+                    startProgressUpdate();
+                  } else if (event.data === YT.PlayerState.PAUSED) {
+                    console.log('⏸️ 곡 일시 정지됨');
+                    isPlaying = false;
+                  } else if (event.data === YT.PlayerState.ENDED) {
+                    console.log('✅ 곡이 끝남!');
+                    // 라이브 모드에서는 자동 재생하지 않음
+                    if (!currentRoomId) {
+                      playNextTrack();
+                    }
+                  }
+                }
+              }
+            });
+          }
+        } else {
+          // 트랙만 변경 (처음부터 재생)
+          if (youtubePlayer) {
+            youtubePlayer.loadVideoById(data.track.streaming_id);
+            isPlaying = true;
+            startProgressUpdate();
+          }
+        }
+        
+        // YouTube 비디오 ID 업데이트
+        currentYouTubeVideoId = data.track.streaming_id;
+        
+        // 클라이언트가 초기 동기화를 받았으면 수신 확인 전송
+        if (data.initialSync && currentRoomId) {
+          socket.emit('syncReceived', { roomId: currentRoomId });
+          console.log('✅ 동기화 데이터 수신 확인 전송');
+        }
+      } else if (data.track === null) {
+        // 라이브 종료 시 플레이어 정지
+        if (youtubePlayer) {
+          youtubePlayer.pauseVideo();
+        }
+        isPlaying = false;
+      }
     }
   });
+  
+  // 호스트만 해당: 새 클라이언트 참여 시 현재 재생 정보 전송
+  socket.on('clientJoined', (data) => {
+    if (isLiveHost && liveStatus === 'on' && isPlaying) {
+      const { clientId, roomId } = data;
+      console.log(`🆕 새 클라이언트 참여: ${clientId}, 방: ${roomId}`);
+      
+      // 현재 재생 시간 가져오기
+      let currentPlayTime = 0;
+      if (youtubePlayer && youtubePlayer.getCurrentTime) {
+        currentPlayTime = youtubePlayer.getCurrentTime();
+      }
+      
+      // 클라이언트에게 현재 재생 정보 전송
+      socket.emit('hostSync', {
+        clientId,
+        roomId,
+        track: {
+          ...$currentTrack,
+          streaming_id: currentYouTubeVideoId
+        },
+        currentTime: currentPlayTime
+      });
+      
+      console.log(`📡 클라이언트 ${clientId}에게 초기 동기화 데이터 전송, 현재 시간: ${currentPlayTime}`);
+      
+      // 재시도 타이머 설정 (수신 확인이 없으면)
+      let retryCount = 0;
+      const timerId = setInterval(() => {
+        if (retryCount >= MAX_SYNC_RETRY) {
+          clearInterval(timerId);
+          syncRetryTimers.delete(clientId);
+          console.log(`⚠️ 클라이언트 ${clientId} 동기화 최대 재시도 횟수 초과`);
+          return;
+        }
+        
+        retryCount++;
+        
+        // 현재 재생 시간 다시 가져오기
+        let currentTime = 0;
+        if (youtubePlayer && youtubePlayer.getCurrentTime) {
+          currentTime = youtubePlayer.getCurrentTime();
+        }
+        
+        // 재시도
+        socket.emit('hostSync', {
+          clientId,
+          roomId,
+          track: {
+            ...$currentTrack,
+            streaming_id: currentYouTubeVideoId
+          },
+          currentTime
+        });
+        
+        console.log(`🔄 클라이언트 ${clientId} 동기화 재시도 #${retryCount}, 현재 시간: ${currentTime}`);
+      }, SYNC_RETRY_INTERVAL);
+      
+      syncRetryTimers.set(clientId, timerId);
+    }
+  });
+  // ===== 수정된 부분 끝 =====
 });
-
 // 토글 상태에 따른 이벤트 발생 로직 수정
 $: if (socket && isLoggedIn) {
   const urlParams = new URLSearchParams(location.search);
@@ -407,12 +560,15 @@ $: if (socket && isLoggedIn) {
         previousTrackName = $currentTrack.name;
         previousTrackArtist = $currentTrack.artist;
         previousTrackId = $currentTrack.track_id;
+		isLiveHost = true;
         
         const hostEmail = user.email.trim().toLowerCase();
         socket.emit('liveOn', { 
           user: { ...user, email: hostEmail }, 
-          track: $currentTrack,
-          currentTime // 소켓 통신에는 currentTime 포함 (기존 기능 유지)
+          track: {
+            ...$currentTrack,
+            streaming_id: currentYouTubeVideoId
+          }
         });
         console.log('호스트 liveOn 발신:', {
           user: { ...user, email: hostEmail },
@@ -426,6 +582,13 @@ $: if (socket && isLoggedIn) {
       previousTrackName = '';
       previousTrackArtist = '';
       previousTrackId = '';
+	  isLiveHost = false;
+
+	  // 모든 재시도 타이머 정리
+      for (const timerId of syncRetryTimers.values()) {
+        clearInterval(timerId);
+      }
+      syncRetryTimers.clear();
       
       socket.emit('liveOff', { user });
       console.log('호스트 liveOff 발신:', { user });
