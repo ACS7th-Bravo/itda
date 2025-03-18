@@ -276,21 +276,32 @@ router.get('/', async (req, res) => {
   // MongoDB에 저장/업데이트
   if (track_id) {
     try {
-      const updateParams = {
+      // 먼저 DynamoDB에서 다시 조회하여 기존 가사가 있는지 확인
+      const paramsCheck = {
         TableName: DYNAMODB_TABLE_TRACKS,
-        Key: { track_id },
-        UpdateExpression: "set plain_lyrics = :plain, parsed_lyrics = :parsed, updatedAt = :updated",
-        ExpressionAttributeValues: {
-          ":plain": plainLyrics,
-          ":parsed": result.length > 0 ? result : null,
-          ":updated": new Date().toISOString()
-        },
-        ReturnValues: "ALL_NEW"
+        Key: { track_id }
       };
-      const updateResult = await dynamoDb.update(updateParams).promise();
-      console.log("✅ [DB] DynamoDB에 가사 저장/업데이트 완료:", updateResult.Attributes);
+      const checkResult = await dynamoDb.get(paramsCheck).promise();
+      if (!(checkResult.Item && checkResult.Item.plain_lyrics && checkResult.Item.parsed_lyrics)) {
+        // 가사가 존재하지 않을 때만 update 수행
+        const updateParams = {
+          TableName: DYNAMODB_TABLE_TRACKS,
+          Key: { track_id },
+          UpdateExpression: "set plain_lyrics = :plain, parsed_lyrics = :parsed, updatedAt = :updated",
+          ExpressionAttributeValues: {
+            ":plain": plainLyrics,
+            ":parsed": result.length > 0 ? result : null,
+            ":updated": new Date().toISOString()
+          },
+          ReturnValues: "ALL_NEW"
+        };
+        const updateResult = await dynamoDb.update(updateParams).promise();
+        console.log("✅ [DB] DynamoDB에 가사 저장/업데이트 완료:", updateResult.Attributes);
+      } else {
+        console.log("ℹ️ [DB] 기존 가사가 존재하므로 업데이트하지 않습니다.");
+      }
     } catch (err) {
-      console.error("❌ [DB] MongoDB 업데이트 오류:", err);
+      console.error("❌ [DB] DynamoDB 업데이트 오류:", err);
     }
   }
 

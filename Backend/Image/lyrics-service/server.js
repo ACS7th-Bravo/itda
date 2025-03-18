@@ -22,6 +22,7 @@ function readSecret(secretName) {
 
 const LRCLIB_API_BASE = readSecret('lrclib_api_base');
 const MUSIXMATCH_API_KEY = readSecret('musixmatch_api_key');
+const MUSIXMATCH_API_HOST = readSecret('musixmatch_api_host');
 const AWS_REGION_DYNAMODB = readSecret('aws_region_dynamodb');
 const AWS_ACCESS_KEY_ID = readSecret('aws_access_key_id');
 const AWS_SECRET_ACCESS_KEY = readSecret('aws_secret_access_key');
