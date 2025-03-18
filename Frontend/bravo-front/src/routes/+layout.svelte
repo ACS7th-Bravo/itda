@@ -346,6 +346,11 @@
  let socket;
  let currentRoomId = ''; // 현재 참여중인 roomId 저장 변수
 let previousLiveStatus = 'off'; // 이전 라이브 상태 저장 변수
+// ===== 추가된 부분 시작 =====
+let previousTrackName = ''; // 이전 트랙 이름 저장 변수
+let previousTrackArtist = ''; // 이전 아티스트 이름 저장 변수
+let previousTrackId = ''; // 이전 트랙 ID 저장 변수
+// ===== 추가된 부분 끝 =====
 
 onMount(async () => {
   const { io } = await import('socket.io-client');
@@ -390,22 +395,38 @@ $: if (socket && isLoggedIn) {
   const liveUserParam = urlParams.get('liveUser');
   
   if (!liveUserParam) { // 호스트인 경우에만 emit
-    // 이전 상태와 현재 상태가 다른 경우에만 emit
-    if (liveStatus === 'on' && isPlaying && (previousLiveStatus !== 'on' || !currentRoomId)) {
-      previousLiveStatus = 'on';
-      const hostEmail = user.email.trim().toLowerCase();
-      socket.emit('liveOn', { 
-        user: { ...user, email: hostEmail }, 
-        track: $currentTrack, 
-        currentTime 
-      });
-      console.log('호스트 liveOn 발신:', {
-        user: { ...user, email: hostEmail },
-        track: $currentTrack,
-        currentTime
-      });
+    // 트랙이 변경되었는지 확인
+    const trackChanged = $currentTrack.name !== previousTrackName || 
+                        $currentTrack.artist !== previousTrackArtist ||
+                        $currentTrack.track_id !== previousTrackId;
+    
+    if (liveStatus === 'on' && isPlaying) {
+      // 최초 라이브 시작 또는 트랙 변경 시에만 이벤트 발생
+      if (previousLiveStatus !== 'on' || !currentRoomId || trackChanged) {
+        previousLiveStatus = 'on';
+        previousTrackName = $currentTrack.name;
+        previousTrackArtist = $currentTrack.artist;
+        previousTrackId = $currentTrack.track_id;
+        
+        const hostEmail = user.email.trim().toLowerCase();
+        socket.emit('liveOn', { 
+          user: { ...user, email: hostEmail }, 
+          track: $currentTrack,
+          currentTime // 소켓 통신에는 currentTime 포함 (기존 기능 유지)
+        });
+        console.log('호스트 liveOn 발신:', {
+          user: { ...user, email: hostEmail },
+          track: $currentTrack,
+          trackId: $currentTrack.track_id
+        });
+      }
     } else if (liveStatus === 'off' && previousLiveStatus === 'on') {
       previousLiveStatus = 'off';
+      // 트랙 정보 초기화
+      previousTrackName = '';
+      previousTrackArtist = '';
+      previousTrackId = '';
+      
       socket.emit('liveOff', { user });
       console.log('호스트 liveOff 발신:', { user });
       currentRoomId = ''; // roomId 초기화

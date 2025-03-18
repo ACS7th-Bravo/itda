@@ -128,20 +128,32 @@ io.on('connection', (socket) => {
       const parsedSession = JSON.parse(existingSession);
       roomId = parsedSession.roomId;
       
-      // 트랙 정보만 업데이트 (이미 라이브 중인 경우)
-      if (data.track && data.track.name) {
+      // 트랙 정보가 변경된 경우에만 업데이트
+      if (data.track && data.track.name && 
+         (parsedSession.track?.name !== data.track.name || 
+          parsedSession.track?.artist !== data.track.artist)) {
+        
+        // currentTime은 저장하지 않음, 트랙 정보만 업데이트
         parsedSession.track = data.track;
-        parsedSession.currentTime = data.currentTime || 0;
+        
         await app.locals.redis.hSet('liveSessions', userEmail, JSON.stringify(parsedSession));
         console.log(`🔄 트랙 정보 업데이트: ${userEmail}, 트랙: ${data.track.name}`);
+        
+        // 방에 있는 모든 클라이언트에게 동기화 데이터 전송
+        io.to(roomId).emit('liveSync', {
+          user: data.user,
+          track: data.track,
+          currentTime: data.currentTime // 소켓 통신에는 currentTime 포함 (기존 기능 유지)
+        });
       }
     } else {
       // 새로운 라이브 세션 시작
       roomId = await generateUniqueRoomId(app.locals.redis);
       
-      // roomId를 data에 추가
+      // Redis에 저장할 데이터에서 currentTime 제외
       const sessionData = {
-        ...data,
+        user: data.user,
+        track: data.track,
         roomId
       };
       
@@ -149,16 +161,24 @@ io.on('connection', (socket) => {
       await app.locals.redis.hSet('liveSessions', userEmail, JSON.stringify(sessionData));
       console.log(`✅ 새 라이브 세션 시작: ${userEmail}, roomId: ${roomId}`);
       
-      // roomId와 email 매핑 저장
-      await app.locals.redis.set(`room:${roomId}`, userEmail);
-    }
-    
+    // roomId와 email 매핑 저장
+    await app.locals.redis.set(`room:${roomId}`, userEmail);
+      
     // 클라이언트에게 roomId 전달 및 알림
-    socket.join(roomId);
     socket.emit('roomCreated', { roomId });
     
     // 방에 있는 모든 클라이언트에게 동기화 데이터 전송
-    io.to(roomId).emit('liveSync', data);
+    io.to(roomId).emit('liveSync', {
+      user: data.user,
+      track: data.track,
+      currentTime: data.currentTime // 소켓 통신에는 포함
+    });
+  }
+  
+  // socket이 아직 방에 join하지 않았으면 join
+  if (!socket.rooms.has(roomId)) {
+    socket.join(roomId);
+  }
   });
 
   socket.on('liveOff', async (data) => {
