@@ -30,7 +30,7 @@
 	  clearInterval(intervalId);
 	});
    
-	function goToLiveSong(liveUser) {
+	function goToLiveSong(stream) {
 	  goto(`/song?liveUser=${stream.roomId}`);
 	}
  </script>
