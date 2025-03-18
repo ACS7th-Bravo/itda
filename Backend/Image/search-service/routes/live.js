@@ -18,6 +18,7 @@ router.get('/', async (req, res) => {
                 return null;
             }
             return {
+                roomId: parsedSession.roomId, // roomId 추가
                 user: parsedSession.user,
                 track: {
                     name: parsedSession.track.name,

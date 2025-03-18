@@ -344,56 +344,74 @@
 	// === 변경된 부분: Socket.io 클라이언트 연결 (동적 임포트 사용) ===
 	// === 변경된 부분: Socket.io 클라이언트 연결 (동적 임포트 사용) ===
  let socket;
- onMount(async () => {
-	 const { io } = await import('socket.io-client');
-	 socket = io(backendUrl, { transports: ['websocket'] });
-	
-	 const urlParams = new URLSearchParams(location.search);
-	 const liveUserParam = urlParams.get('liveUser');
-	console.log('liveUserParam:', liveUserParam);
-	
-	 if (liveUserParam) {
-		 const roomId = liveUserParam.trim().toLowerCase();
-		 console.log(`🔗 클라이언트가 방 참여 요청: ${roomId}`);
-		 socket.emit('joinRoom', { roomId });
+ let currentRoomId = ''; // 현재 참여중인 roomId 저장 변수
+let previousLiveStatus = 'off'; // 이전 라이브 상태 저장 변수
+
+onMount(async () => {
+  const { io } = await import('socket.io-client');
+  socket = io(backendUrl, { transports: ['websocket'] });
  
-		 // 서버에서 응답을 받을 때까지 확인
-		 socket.on('roomJoined', (data) => {
-			 console.log(`✅ 클라이언트가 방에 성공적으로 입장: ${data.roomId}`);
-		 });
-	 } else if (isLoggedIn && liveStatus === 'on' && isPlaying) {
-		 const hostEmail = user.email.trim().toLowerCase();
-		 socket.emit('liveOn', { 
-			 user: { ...user, email: hostEmail }, 
-			 track: { name: $currentTrack.name, artist: $currentTrack.artist, albumImage: $currentTrack.albumImage }
-		 });
-		 console.log('🎤 호스트 liveOn emit:', { user: { ...user, email: hostEmail }, track: $currentTrack });
-	 }
+  const urlParams = new URLSearchParams(location.search);
+  const liveUserParam = urlParams.get('liveUser');
+  console.log('liveUserParam:', liveUserParam);
  
-	 socket.on('liveSync', (data) => {
-		 console.log('📡 liveSync 이벤트 수신:', data);
- 
-		 if (data && data.track && data.track.streaming_id) {
-			 currentTrack.set({ ...data.track });
-			 currentYouTubeVideoId = data.track.streaming_id;
-			 console.log('🎶 클라이언트 플레이어 업데이트:', data.track);
-		 }
-	 });
- });
-	$: if (socket && isLoggedIn) {
-	   const urlParams = new URLSearchParams(location.search);
-	   const liveUserParam = urlParams.get('liveUser');
-	   if (!liveUserParam) { // 호스트인 경우에만 emit
-		  if (liveStatus === 'on' && isPlaying) {
-			 const hostEmail = user.email.trim().toLowerCase();
-	   socket.emit('liveOn', { user: { ...user, email: hostEmail }, track: $currentTrack, currentTime });
-	   console.log('호스트 liveOn 재emit:', { user: { ...user, email: hostEmail }, track: $currentTrack, currentTime })
-		  } else {
-			 socket.emit('liveOff', { user });
-			 console.log('호스트 liveOff emit:', { user });
-		  }
-	   }
-	}
+  if (liveUserParam) {
+    const roomId = liveUserParam.trim();
+    console.log(`🔗 클라이언트가 방 참여 요청: ${roomId}`);
+    socket.emit('joinRoom', { roomId });
+
+    // 서버에서 응답을 받을 때까지 확인
+    socket.on('roomJoined', (data) => {
+      console.log(`✅ 클라이언트가 방에 성공적으로 입장: ${data.roomId}`);
+      currentRoomId = data.roomId;
+    });
+  }
+
+  // 서버에서 생성된 roomId 수신
+  socket.on('roomCreated', (data) => {
+    console.log(`✅ 새 룸 생성됨: ${data.roomId}`);
+    currentRoomId = data.roomId;
+  });
+
+  socket.on('liveSync', (data) => {
+    console.log('📡 liveSync 이벤트 수신:', data);
+
+    if (data && data.track && data.track.streaming_id) {
+      currentTrack.set({ ...data.track });
+      currentYouTubeVideoId = data.track.streaming_id;
+      console.log('🎶 클라이언트 플레이어 업데이트:', data.track);
+    }
+  });
+});
+
+// 토글 상태에 따른 이벤트 발생 로직 수정
+$: if (socket && isLoggedIn) {
+  const urlParams = new URLSearchParams(location.search);
+  const liveUserParam = urlParams.get('liveUser');
+  
+  if (!liveUserParam) { // 호스트인 경우에만 emit
+    // 이전 상태와 현재 상태가 다른 경우에만 emit
+    if (liveStatus === 'on' && isPlaying && (previousLiveStatus !== 'on' || !currentRoomId)) {
+      previousLiveStatus = 'on';
+      const hostEmail = user.email.trim().toLowerCase();
+      socket.emit('liveOn', { 
+        user: { ...user, email: hostEmail }, 
+        track: $currentTrack, 
+        currentTime 
+      });
+      console.log('호스트 liveOn 발신:', {
+        user: { ...user, email: hostEmail },
+        track: $currentTrack,
+        currentTime
+      });
+    } else if (liveStatus === 'off' && previousLiveStatus === 'on') {
+      previousLiveStatus = 'off';
+      socket.emit('liveOff', { user });
+      console.log('호스트 liveOff 발신:', { user });
+      currentRoomId = ''; // roomId 초기화
+    }
+  }
+}
 	// === 변경된 부분 끝 ===
  
 	// ===================== [추가된 부분: 기존 플레이리스트 목록 로드 및 드롭다운 메뉴 관련 변수/함수] =====================

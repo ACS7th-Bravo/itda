@@ -68,46 +68,126 @@ app.get('/ready', (req, res) => {
   }
 });
 
+// UUID 생성 함수 추가
+// ===== 추가된 부분 시작 =====
+function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+// 고유한 roomId 생성 함수
+async function generateUniqueRoomId(redis) {
+  let roomId;
+  let exists = true;
+  
+  // 고유한 ID가 생성될 때까지 반복
+  while(exists) {
+    roomId = generateUUID();
+    // 이미 존재하는지 확인
+    const existsRoom = await redis.exists(`room:${roomId}`);
+    exists = existsRoom === 1;
+  }
+  
+  return roomId;
+}
+
 // Socket.IO 통합 시작
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*" }
 });
 
-// ── 추가된 부분: joinRoom 이벤트 처리 ──
 io.on('connection', (socket) => {
   console.log(`새 클라이언트 연결: ${socket.id}`);
 
+  // ===== 수정된 부분 시작 =====
   socket.on('joinRoom', (data) => {
-    const roomId = data.roomId.trim().toLowerCase();
+    const roomId = data.roomId.trim();
     socket.join(roomId);
     console.log(`Socket ${socket.id} joined room ${roomId}`);
+    socket.emit('roomJoined', { roomId }); // 클라이언트에게 응답
   });
-  // ────────────────────────────────────────────
 
   socket.on('liveOn', async (data) => {
-    const roomId = data.user.email.trim().toLowerCase();
+    const userEmail = data.user.email.trim().toLowerCase();
+    
+    // 이미 liveSessions에 있는지 확인
+    const existingSession = await app.locals.redis.hGet('liveSessions', userEmail);
+    
+    // Room ID 확인 또는 생성
+    let roomId;
+    
+    if (existingSession) {
+      // 이미 라이브 중이면 기존 roomId 사용
+      const parsedSession = JSON.parse(existingSession);
+      roomId = parsedSession.roomId;
+      
+      // 트랙 정보만 업데이트 (이미 라이브 중인 경우)
+      if (data.track && data.track.name) {
+        parsedSession.track = data.track;
+        parsedSession.currentTime = data.currentTime || 0;
+        await app.locals.redis.hSet('liveSessions', userEmail, JSON.stringify(parsedSession));
+        console.log(`🔄 트랙 정보 업데이트: ${userEmail}, 트랙: ${data.track.name}`);
+      }
+    } else {
+      // 새로운 라이브 세션 시작
+      roomId = await generateUniqueRoomId(app.locals.redis);
+      
+      // roomId를 data에 추가
+      const sessionData = {
+        ...data,
+        roomId
+      };
+      
+      // Redis에 저장
+      await app.locals.redis.hSet('liveSessions', userEmail, JSON.stringify(sessionData));
+      console.log(`✅ 새 라이브 세션 시작: ${userEmail}, roomId: ${roomId}`);
+      
+      // roomId와 email 매핑 저장
+      await app.locals.redis.set(`room:${roomId}`, userEmail);
+    }
+    
+    // 클라이언트에게 roomId 전달 및 알림
     socket.join(roomId);
-    console.log(`라이브 시작 요청 from ${data.user.email} - room: ${roomId}`, data);
-    await app.locals.redis.hSet('liveSessions', roomId, JSON.stringify(data));
-    console.log(`✅ Redis 저장: liveSessions[${roomId}] = ${JSON.stringify(data)}`);
+    socket.emit('roomCreated', { roomId });
+    
+    // 방에 있는 모든 클라이언트에게 동기화 데이터 전송
     io.to(roomId).emit('liveSync', data);
   });
 
   socket.on('liveOff', async (data) => {
-    const roomId = data.user.email.trim().toLowerCase();
-    console.log(`라이브 종료 요청 from ${data.user.email} - room: ${roomId}`);
-    await app.locals.redis.hDel('liveSessions', roomId);
-    console.log(`❌ Redis 삭제: liveSessions[${roomId}] 삭제됨`);
-    io.to(roomId).emit('liveSync', { user: data.user, track: null, currentTime: 0 });
-    socket.leave(roomId);
+    const userEmail = data.user.email.trim().toLowerCase();
+    
+    // 해당 사용자의 라이브 세션 정보 확인
+    const existingSession = await app.locals.redis.hGet('liveSessions', userEmail);
+    
+    if (existingSession) {
+      const parsedSession = JSON.parse(existingSession);
+      const roomId = parsedSession.roomId;
+      
+      // Redis에서 라이브 세션 및 roomId 매핑 삭제
+      await app.locals.redis.hDel('liveSessions', userEmail);
+      await app.locals.redis.del(`room:${roomId}`);
+      
+      console.log(`❌ 라이브 세션 종료: ${userEmail}, roomId: ${roomId}`);
+      
+      // 방의 모든 클라이언트에게 라이브 종료 알림
+      io.to(roomId).emit('liveSync', { user: data.user, track: null, currentTime: 0 });
+      
+      // socket을 방에서 나가게 함
+      socket.leave(roomId);
+    }
   });
+  // ===== 수정된 부분 끝 =====
 
   socket.on('disconnect', () => {
     console.log(`클라이언트 연결 해제: ${socket.id}`);
   });
 });
-// Socket.IO 통합 끝
+
 
 server.listen(PORT, () => {
   console.log(`Socket.IO 기능이 포함된 백엔드가 포트 ${PORT}에서 실행 중`);
