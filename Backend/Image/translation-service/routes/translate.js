@@ -5,9 +5,11 @@ import { TranslateClient, TranslateTextCommand } from "@aws-sdk/client-translate
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 import { performance } from "perf_hooks";
 import { encode } from "gpt-3-encoder"; // 토큰 수 계산 라이브러리
-import { Track } from '../models/Track.js';
 import fs from 'fs';
 import path from 'path';
+import AWS from 'aws-sdk';  // CHANGE: DynamoDB DocumentClient 사용
+import { createClient } from 'redis'; // Redis 클라이언트 import
+
 
 const router = express.Router();
 
@@ -24,9 +26,18 @@ function readSecret(secretName) {
 
 // ✅ AWS Secrets Manager에서 필요한 환경 변수 불러오기
 const AWS_REGION = readSecret('aws_region');
+const AWS_REGION_DYNAMODB = readSecret('aws_region_dynamodb');
+const DYNAMODB_TABLE_TRACKS = readSecret('dynamo_table_tracks');
 const AWS_ACCESS_KEY_ID = readSecret('aws_access_key_id');
 const AWS_SECRET_ACCESS_KEY = readSecret('aws_secret_access_key');
 const INFERENCE_PROFILE_ARN = readSecret('inference_profile_arn');
+const REDIS_URL = readSecret('redis_url');
+
+const dynamoDb = new AWS.DynamoDB.DocumentClient({
+  region: AWS_REGION_DYNAMODB,
+  accessKeyId: AWS_ACCESS_KEY_ID,
+  secretAccessKey: AWS_SECRET_ACCESS_KEY,
+});
 
 // AWS Bedrock Client 설정 (region은 env에 있는 값 그대로 사용)
 const client = new BedrockRuntimeClient({
@@ -46,10 +57,17 @@ const translateClient = new TranslateClient({
   },
 });
 
+// Redis 클라이언트 설정
+const redisClient = createClient({ url: REDIS_URL });
+redisClient.on('error', err => console.error('Redis Client Error', err));
+await redisClient.connect();
+
+
 // 한글 포함 여부 확인 함수
 function containsKorean(text) {
   return /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(text);
 }
+
 
 /**
  * AWS Translate를 이용해 가사를 한국어로 번역합니다.
@@ -212,22 +230,46 @@ async function processTranslation(lyrics) {
 router.post('/', async (req, res) => { 
   let { lyrics, track_id } = req.body;
 
+  if (track_id) {
+    const redisKey = `lyrics_translation:${track_id}`;
+    try {
+      const cachedTranslation = await redisClient.get(redisKey);
+      if (cachedTranslation) {
+        console.log("✅ [Redis] 캐시된 번역 가사를 찾았습니다:", { track_id, lyrics_translation: cachedTranslation });
+        res.write(`data: ${JSON.stringify({ stage: 'refined', translation: cachedTranslation })}\n\n`);
+        return res.end();
+      } else {
+        console.log(`ℹ️ [Redis] 캐시된 번역 가사가 없습니다: track_id=${track_id}`);
+      }
+    } catch (err) {
+      console.error("❌ [Redis] 캐시 조회 중 오류:", err);
+    }
+  }
+
   // track_id가 있다면 DB에서 해당 트랙 정보를 조회합니다.
   if (track_id) {
     try {
-      const trackDoc = await Track.findOne({ track_id });
-      if (trackDoc && trackDoc.lyrics_translation) {
-        console.log("✅ DB에 저장된 번역 가사가 있습니다. 바로 반환합니다.");
-        res.write(`data: ${JSON.stringify({ stage: 'refined', translation: trackDoc.lyrics_translation })}\n\n`);
-        return res.end();
+      const paramsGet = {
+        TableName: DYNAMODB_TABLE_TRACKS,
+        Key: { track_id }
+      };
+      const dbResult = await dynamoDb.get(paramsGet).promise();
+      if (dbResult.Item && dbResult.Item.lyrics_translation) {
+        console.log("✅ [DynamoDB] DB에 저장된 번역 가사가 있습니다. 바로 반환합니다.", dbResult.Item);
+        res.write(`data: ${JSON.stringify({ stage: 'refined', translation: dbResult.Item.lyrics_translation })}\n\n`);
+        res.end();
+        // 반환 후 비동기적으로 Redis에 캐싱
+        redisClient.setEx(`lyrics_translation:${track_id}`, 86400, dbResult.Item.lyrics_translation)
+          .then(() => console.log(`✅ [Redis] DB의 번역 가사를 Redis에 캐싱 완료: track_id=${track_id}`))
+          .catch(err => console.error("❌ [Redis] 캐싱 중 오류:", err));
+        return;
       }
-      // DB에 번역된 가사가 없다면 plain_lyrics를 번역에 사용합니다.
-      if (trackDoc && trackDoc.plain_lyrics) {
-        lyrics = trackDoc.plain_lyrics;
-        console.log("✅ DB에 번역된 가사가 없으므로, plain_lyrics를 번역에 사용합니다.");
+      if (dbResult.Item && dbResult.Item.plain_lyrics) {
+        lyrics = dbResult.Item.plain_lyrics;
+        console.log("✅ [DynamoDB] DB에 번역 가사가 없으므로, plain_lyrics를 번역에 사용합니다.");
       }
     } catch (err) {
-      console.error("❌ DB 조회 오류:", err);
+      console.error("❌ [DynamoDB] DB 조회 오류:", err);
     }
   }
 
@@ -249,11 +291,22 @@ router.post('/', async (req, res) => {
       console.log("입력 텍스트가 이미 한국어이므로, 번역 없이 원문 반환");
       // ★★ DB 업데이트: track_id가 있다면 lyrics_translation도 원문 그대로 저장
       if (track_id) {
-        await Track.findOneAndUpdate(
-          { track_id },
-          { lyrics_translation: lyrics },
-          { upsert: true }
-        );
+        try {
+          const updateParams = {
+            TableName: DYNAMODB_TABLE_TRACKS,
+            Key: { track_id },
+            UpdateExpression: "set lyrics_translation = :trans, updatedAt = :updated",
+            ExpressionAttributeValues: {
+              ":trans": lyrics,
+              ":updated": new Date().toISOString()
+            },
+            ReturnValues: "ALL_NEW"
+          };
+          const updateResult = await dynamoDb.update(updateParams).promise();
+          console.log("✅ [DynamoDB] 원문 저장 완료:", updateResult.Attributes);
+        } catch (err) {
+          console.error("❌ [DynamoDB] 원문 저장 오류:", err);
+        }
       }
       
       res.write(`data: ${JSON.stringify({ stage: 'refined', translation: lyrics })}\n\n`);
@@ -294,14 +347,33 @@ router.post('/', async (req, res) => {
     // ★★ DB 업데이트: track_id가 있다면 lyrics_translation 필드 업데이트
     if (track_id) {
       try {
-        await Track.findOneAndUpdate(
-          { track_id },
-          { lyrics_translation: refinedResult },
-          { upsert: true }
-        );
-        console.log("DB에 번역 가사 저장/업데이트 완료.");
+        const paramsCheck = {
+          TableName: DYNAMODB_TABLE_TRACKS,
+          Key: { track_id }
+        };
+        const checkResult = await dynamoDb.get(paramsCheck).promise();
+        if (!(checkResult.Item && checkResult.Item.lyrics_translation)) {
+          const updateParams = {
+            TableName: DYNAMODB_TABLE_TRACKS,
+            Key: { track_id },
+            UpdateExpression: "set lyrics_translation = :trans, updatedAt = :updated",
+            ExpressionAttributeValues: {
+              ":trans": refinedResult,
+              ":updated": new Date().toISOString()
+            },
+            ReturnValues: "ALL_NEW"
+          };
+          const updateResult = await dynamoDb.update(updateParams).promise();
+          console.log("✅ [DynamoDB] 번역 가사 저장/업데이트 완료:", updateResult.Attributes);
+        } else {
+          console.log("ℹ️ [DynamoDB] 기존 번역 가사가 존재하므로 업데이트하지 않습니다.");
+        }
+        // 반환 후 비동기적으로 Redis 캐싱
+        redisClient.setEx(`lyrics_translation:${track_id}`, 86400, refinedResult)
+          .then(() => console.log(`✅ [Redis] 새 번역 가사를 Redis에 캐싱했습니다: track_id=${track_id}`))
+          .catch(err => console.error("❌ [Redis] 캐싱 중 오류:", err));
       } catch (err) {
-        console.error("DB 업데이트 오류:", err);
+        console.error("❌ [DynamoDB] 번역 가사 업데이트 오류:", err);
       }
     }
     res.write(`data: ${JSON.stringify({ stage: 'refined', translation: refinedResult })}\n\n`);

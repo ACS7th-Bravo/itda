@@ -1,3 +1,6 @@
+<!-- /bravo-front/src/routes/song/lyrics/+page.svelte -->
+
+
 <script>
 	import { getContext, onMount, onDestroy, tick, createEventDispatcher } from 'svelte';
 	import { writable } from 'svelte/store';
