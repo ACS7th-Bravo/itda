@@ -28,7 +28,7 @@ function readSecret(secretName) {
 // ✅ AWS Secrets Manager에서 필요한 환경 변수 불러오기
 const AWS_REGION = readSecret('aws_region');
 const AWS_REGION_DYNAMODB = readSecret('aws_region_dynamodb');
-const DYNAMODB_TABLE_TRACKS = readSecret('dynamo_table_tracks');
+const DYNAMODB_TABLE_TRACKS = readSecret('dynamodb_table_tracks');
 const AWS_ACCESS_KEY_ID = readSecret('aws_access_key_id');
 const AWS_SECRET_ACCESS_KEY = readSecret('aws_secret_access_key');
 const INFERENCE_PROFILE_ARN = readSecret('inference_profile_arn');
