@@ -24,6 +24,7 @@ function readSecret(secretName) {
   }
 }
 
+
 // ✅ AWS Secrets Manager에서 필요한 환경 변수 불러오기
 const AWS_REGION = readSecret('aws_region');
 const AWS_REGION_DYNAMODB = readSecret('aws_region_dynamodb');
