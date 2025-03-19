@@ -46,7 +46,7 @@ await redisClient.connect();
 
 // 미들웨어: 모든 요청을 로깅
 app.use((req, res, next) => {
-  console.log(`Request received: ${req.method} ${req.url}`);
+  // console.log(`Request received: ${req.method} ${req.url}`);
   next();
 });
 
