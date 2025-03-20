@@ -128,6 +128,8 @@ io.on('connection', (socket) => {
     const hostSocketId = roomHostMap.get(roomId);
     
     if (hostSocketId) {
+      console.log(`📣 방 ${roomId}의 호스트 ${hostSocketId}에게 클라이언트 참여 알림 전송`);
+
       // 호스트에게 새로운 클라이언트가 참여했음을 알림
       io.to(hostSocketId).emit('clientJoined', { 
         clientId: socket.id,
@@ -142,23 +144,31 @@ io.on('connection', (socket) => {
       
       console.log(`🔄 클라이언트 ${socket.id}가 방 ${roomId}에 참여, 호스트 ${hostSocketId}에게 알림`);
     } else {
+      console.log(`⚠️ 방 ${roomId}에 호스트가 없음. Redis에서 세션 정보 조회 시도...`);
       // 호스트가 없는 경우 Redis에서 세션 정보 가져와서 직접 동기화
       try {
         const userEmail = await app.locals.redis.get(`room:${roomId}`);
         if (userEmail) {
+          console.log(`✅ Redis에서 userEmail 찾음: ${userEmail}`);
           const sessionData = await app.locals.redis.hGet('liveSessions', userEmail);
           if (sessionData) {
             const parsedSession = JSON.parse(sessionData);
             socket.emit('liveSync', {
               user: parsedSession.user,
               track: parsedSession.track,
-              roomId: roomId
+              roomId: roomId,
+              initialSync: true
             });
             console.log(`🔄 호스트 없음, Redis에서 방 ${roomId} 정보 직접 전송`);
+          }else {
+            console.log(`⚠️ Redis에서 세션 데이터를 찾을 수 없음: ${userEmail}`);
           }
+        } else {
+          console.log(`⚠️ Redis에서 roomId:${roomId}에 해당하는 userEmail을 찾을 수 없음`);
+          
         }
       } catch (error) {
-        console.error(`Redis에서 방 정보 가져오기 실패: ${error.message}`);
+        console.error(`❌ Redis에서 방 정보 가져오기 실패: ${error.message}`);
       }
     }
   });
@@ -248,6 +258,7 @@ io.on('connection', (socket) => {
     // 이 소켓을 해당 방의 호스트로 등록
     roomHostMap.set(roomId, socket.id);
     console.log(`💻 호스트 등록: 방 ${roomId}의 호스트는 ${socket.id}`);
+    console.log(`현재 roomHostMap:`, Array.from(roomHostMap.entries()));
     // ===== 추가된 부분 끝 =====
   
   // socket이 아직 방에 join하지 않았으면 join

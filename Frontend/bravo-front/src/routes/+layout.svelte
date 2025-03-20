@@ -373,8 +373,19 @@ onMount(async () => {
   if (liveUserParam) {
     const roomId = liveUserParam.trim();
     console.log(`🔗 클라이언트가 방 참여 요청: ${roomId}`);
-    socket.emit('joinRoom', { roomId });
-
+    
+    // 소켓 연결 후 확실히 방 참여 요청 보내기
+    // 연결이 완료된 후에 joinRoom 이벤트를 보내기 위해 connect 이벤트 사용
+    if (socket.connected) {
+      socket.emit('joinRoom', { roomId });
+      console.log(`소켓 이미 연결됨. 방 참여 요청 전송: ${roomId}`);
+    } else {
+      socket.on('connect', () => {
+        socket.emit('joinRoom', { roomId });
+        console.log(`소켓 연결 완료. 방 참여 요청 전송: ${roomId}`);
+      });
+    }
+    
     // 서버에서 응답을 받을 때까지 확인
     socket.on('roomJoined', (data) => {
       console.log(`✅ 클라이언트가 방에 성공적으로 입장: ${data.roomId}`);
@@ -482,6 +493,8 @@ onMount(async () => {
   
   // 호스트만 해당: 새 클라이언트 참여 시 현재 재생 정보 전송
   socket.on('clientJoined', (data) => {
+    console.log('clientJoined 이벤트 수신:', data);
+    
     if (isLiveHost && liveStatus === 'on' && isPlaying) {
       const { clientId, roomId } = data;
       console.log(`🆕 새 클라이언트 참여: ${clientId}, 방: ${roomId}`);
@@ -492,16 +505,27 @@ onMount(async () => {
         currentPlayTime = youtubePlayer.getCurrentTime();
       }
       
+      // 현재 스트리밍 ID 확인
+      const streamingId = currentYouTubeVideoId || $currentTrack.streaming_id;
+      
+      if (!streamingId) {
+        console.log('⚠️ 현재 스트리밍 ID가 없음, 동기화 불가');
+        return;
+      }
+      
       // 클라이언트에게 현재 재생 정보 전송
-      socket.emit('hostSync', {
+      const syncData = {
         clientId,
         roomId,
         track: {
           ...$currentTrack,
-          streaming_id: currentYouTubeVideoId
+          streaming_id: streamingId
         },
         currentTime: currentPlayTime
-      });
+      };
+      
+      console.log('📤 동기화 데이터 전송:', syncData);
+      socket.emit('hostSync', syncData);
       
       console.log(`📡 클라이언트 ${clientId}에게 초기 동기화 데이터 전송, 현재 시간: ${currentPlayTime}`);
       
@@ -529,7 +553,7 @@ onMount(async () => {
           roomId,
           track: {
             ...$currentTrack,
-            streaming_id: currentYouTubeVideoId
+            streaming_id: streamingId
           },
           currentTime
         });
@@ -538,6 +562,8 @@ onMount(async () => {
       }, SYNC_RETRY_INTERVAL);
       
       syncRetryTimers.set(clientId, timerId);
+    } else {
+      console.log(`⚠️ 호스트 상태 아님 또는 라이브 중이 아님: isHost=${isLiveHost}, liveStatus=${liveStatus}, isPlaying=${isPlaying}`);
     }
   });
   // ===== 수정된 부분 끝 =====
