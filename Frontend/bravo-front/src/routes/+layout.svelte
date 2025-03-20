@@ -364,6 +364,7 @@ let isLiveHost = false;
 
 ///온마운트3 시작
 onMount(async () => {
+	console.log('Song 페이지 마운트됨, URL:', window.location.href);
   // 1. 토큰 관련 처리
   const urlParams = new URLSearchParams(window.location.search);
   const tokenFromUrl = urlParams.get('token');
@@ -657,6 +658,7 @@ onMount(async () => {
 
 // URL 변경 감지 및 라이브 모드 처리 - 통합된 반응형 구문
 $: if (socket && socket.connected && isLoggedIn) {
+	console.log('현재 URL 검사:', $page.url.pathname, $page.url.search);
 		const urlParams = new URLSearchParams(location.search);
 		const liveUserParam = urlParams.get('liveUser');
 		
@@ -724,6 +726,14 @@ $: if (socket && socket.connected && isLoggedIn) {
 		}
 	}
 
+	$: {
+  console.log('소켓 상태 확인:', {
+    소켓존재: !!socket,
+    연결상태: socket?.connected,
+    현재룸ID: currentRoomId
+  });
+}
+
 
 //온마운트3 끝끝
 
@@ -732,7 +742,7 @@ $: if (socket && socket.connected && isLoggedIn) {
 
 
 
-//-----온마운트1 시작작
+//-----온마운트1 시작작 (기존 코드)
 // onMount(async () => {
 //   const { io } = await import('socket.io-client');
 //   socket = io(backendUrl, { transports: ['websocket'] });
@@ -942,7 +952,7 @@ $: if (socket && socket.connected && isLoggedIn) {
 //   });
 //   // ===== 수정된 부분 끝 =====
 // });
-// //---온마운트1 끝
+// //---온마운트1 끝 (기존코드 끝)
 
 
 // 토글 상태에 따른 이벤트 발생 로직 수정(기존코드 시작)
@@ -1095,7 +1105,7 @@ $: if (socket && socket.connected && isLoggedIn) {
 // 		  }
 // 	   };
 // 	});
-// 	//---온마운트2 끝
+// 	//---온마운트2 끝 (기존 코드 끝)
  
 	// [추가] 기존 플레이리스트에 곡 추가 API 호출 함수 (기존 리스트의 맨 위에 곡들을 추가)
 	async function addTracksToExistingPlaylist(playlistId, tracksToAdd) {
