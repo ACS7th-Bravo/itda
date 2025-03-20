@@ -118,6 +118,8 @@ io.on('connection', (socket) => {
   // ===== 수정된 부분 시작 =====
   socket.on('joinRoom', async (data) => {
     const roomId = data.roomId.trim();
+    console.log(`📢 클라이언트 ${socket.id}가 방 ${roomId} 참여 시도중...`);
+
     socket.join(roomId);
     console.log(`Socket ${socket.id} joined room ${roomId}`);
     
