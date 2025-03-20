@@ -5,11 +5,17 @@
 	import { writable } from 'svelte/store';
 	import Lyrics from './lyrics/+page.svelte';
 	import ColorThief from 'colorthief'; // ==== Added: ColorThief import
+	import { page } from '$app/stores'; // === 추가: page 스토어 임포트 ===
 
 
 	const backendUrl = import.meta.env.VITE_BACKEND_URL;
 	let currentTrack = getContext('currentTrack');
 	let showLyrics = getContext('lyricsExpanded');
+
+	// === 추가: 라이브 모드 감지를 위한 변수 선언 ===
+  let liveUserParam = '';
+
+  
 
 	function toggleLyrics() {
 		showLyrics.update((n) => !n);
@@ -63,14 +69,54 @@
 		}
 	}
 
+	function dispatchJoinRoomEvent(roomId) {
+    if (roomId) {
+      // 전역 이벤트로 dispatch하여 layout에서 처리할 수 있도록 함(라이브)
+      const joinEvent = new CustomEvent('joinLiveRoom', { 
+        detail: { roomId },
+        bubbles: true 
+      });
+      window.dispatchEvent(joinEvent);
+      console.log(`🔔 Song 페이지에서 joinLiveRoom 이벤트 발신: ${roomId}`);
+    }
+  }
 	onMount(() => {
 		if (songPage) {
 			songPage.addEventListener('scroll', handleScroll);
 		}
+		const urlParams = new URLSearchParams(window.location.search);
+    liveUserParam = urlParams.get('liveUser');
+    
+    if (liveUserParam) {
+      isLiveMode = true;
+      console.log(`🔍 Song 페이지에서 liveUser 파라미터 감지: ${liveUserParam}`);
+      
+      // 방 참여 요청 이벤트 발신
+      dispatchJoinRoomEvent(liveUserParam);
+    }
 		return () => {
 			if (songPage) songPage.removeEventListener('scroll', handleScroll);
 		};
 	});
+
+	// === 추가: page 스토어 변경 감지하여 liveUser 파라미터 확인 ===(라이브브)
+	$: {
+    if ($page && $page.url) {
+      const urlParams = new URLSearchParams($page.url.search);
+      const newLiveUserParam = urlParams.get('liveUser');
+      
+      // liveUser 파라미터가 변경되었을 때만 처리
+      if (newLiveUserParam !== liveUserParam) {
+        liveUserParam = newLiveUserParam;
+        
+        if (liveUserParam) {
+          console.log(`🔄 Song 페이지에서 liveUser 파라미터 변경 감지: ${liveUserParam}`);
+          dispatchJoinRoomEvent(liveUserParam);
+        }
+      }
+    }
+  }
+  // === 추가 끝 ===
 
 	/* --- 추가된 부분: 번역 보정 인디케이터 애니메이션 --- */
 	let indicatorCycle = ['번역 보정 진행중.', '번역 보정 진행중..', '번역 보정 진행중...'];
@@ -279,7 +325,8 @@
 
 
 </script>
-
+<!-- 이벤트 리스너 추가 - 라이브 참여 이벤트를 전역에서 받기 위한 스바인딩 -->
+<svelte:window on:joinLiveRoom={(event) => dispatchJoinRoomEvent(event.detail.roomId)} />
 <!-- Song 페이지 컨테이너 -->
 <div
 	class="song-page"
@@ -347,8 +394,6 @@
 		<Lyrics bind:this={lyricsComponent} on:update={handleUpdate} />
 	</div>
 </div>
-
-<!-- /bravo-front/src/routes/song/+page.svelte -->
 
 <style>
 	*::-webkit-scrollbar {

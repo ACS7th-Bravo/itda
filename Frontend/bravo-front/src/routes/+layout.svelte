@@ -362,6 +362,22 @@ const SYNC_RETRY_INTERVAL = 5000;
 // 호스트인지 여부
 let isLiveHost = false;
 
+function handleLiveUserParam(liveUserParam) {
+  if (liveUserParam && socket && socket.connected) {
+    const roomId = liveUserParam.trim();
+    console.log(`🔍 URL에서 liveUser 파라미터 감지: ${roomId}`);
+    
+    // 이미 같은 방에 참여중인 경우 재전송하지 않음
+    if (roomId !== currentRoomId) {
+      console.log(`🔗 클라이언트가 방 참여 요청: ${roomId}`);
+      socket.emit('joinRoom', { roomId });
+      console.log(`📤 joinRoom 이벤트 전송: ${roomId}`);
+    } else {
+      console.log(`⚠️ 이미 방 ${roomId}에 참여 중입니다.`);
+    }
+  }
+}
+
 ///온마운트3 시작
 onMount(async () => {
 	console.log('Song 페이지 마운트됨, URL:', window.location.href);
@@ -643,9 +659,17 @@ onMount(async () => {
   } catch (error) {
     console.error('Socket.io 초기화 실패:', error);
   }
+  // 추가: 전역 이벤트 리스너 등록
+  window.addEventListener('joinLiveRoom', (event) => {
+    if (socket && socket.connected && event.detail && event.detail.roomId) {
+      handleLiveUserParam(event.detail.roomId);
+    }
+  });
 
   // 이벤트 리스너 정리 함수 반환
   return () => {
+	window.removeEventListener('joinLiveRoom', handleLiveUserParam);
+
     window.removeEventListener('playTrack', handlePlayTrack);
     if (scrollingSongNameElement) {
       scrollingSongNameElement.removeEventListener('animationend', handleSongNameAnimationEnd);
@@ -657,74 +681,69 @@ onMount(async () => {
 });
 
 // URL 변경 감지 및 라이브 모드 처리 - 통합된 반응형 구문
-$: if (socket && socket.connected && isLoggedIn) {
-	console.log('현재 URL 검사:', $page.url.pathname, $page.url.search);
-		const urlParams = new URLSearchParams(location.search);
-		const liveUserParam = urlParams.get('liveUser');
-		
-		// 클라이언트 모드 (라이브 유저 파라미터가 있는 경우)
-		if (liveUserParam && !currentRoomId) {
-			const roomId = liveUserParam.trim();
-			console.log(`🔍 URL 파라미터 변경 감지: liveUser=${roomId}`);
-			
-			// 소켓이 연결된 상태에서만 방 참여 요청 보내기
-			socket.emit('joinRoom', { roomId });
-			console.log(`📤 URL 변경으로 인한 joinRoom 이벤트 전송: ${roomId}`);
-		}
-		// 호스트 모드 (라이브 유저 파라미터가 없는 경우)
-		else if (!liveUserParam) {
-			// 트랙이 변경되었는지 확인
-			const trackChanged = $currentTrack.name !== previousTrackName || 
-								$currentTrack.artist !== previousTrackArtist ||
-								$currentTrack.track_id !== previousTrackId;
-			
-			if (liveStatus === 'on' && isPlaying) {
-				// 최초 라이브 시작 또는 트랙 변경 시에만 이벤트 발생
-				if (previousLiveStatus !== 'on' || !currentRoomId || trackChanged) {
-					console.log(`🔴 라이브 시작 또는 트랙 변경: ${$currentTrack.name}`);
-					
-					previousLiveStatus = 'on';
-					previousTrackName = $currentTrack.name;
-					previousTrackArtist = $currentTrack.artist;
-					previousTrackId = $currentTrack.track_id;
-					isLiveHost = true;
-					
-					// 한 번만 발송하도록 상태 확인
-					const hostEmail = user.email.trim().toLowerCase();
-					socket.emit('liveOn', { 
-						user: { ...user, email: hostEmail }, 
-						track: {
-							...$currentTrack,
-							streaming_id: currentYouTubeVideoId
-						}
-					});
-					console.log('호스트 liveOn 발신:', {
-						user: { ...user, email: hostEmail },
-						track: $currentTrack
-					});
-				}
-			} else if (liveStatus === 'off' && previousLiveStatus === 'on') {
-				// 라이브 종료
-				console.log('⚫ 라이브 종료');
-				
-				previousLiveStatus = 'off';
-				previousTrackName = '';
-				previousTrackArtist = '';
-				previousTrackId = '';
-				isLiveHost = false;
+$: if (socket && socket.connected) {
+  // 현재 URL에서 liveUser 파라미터 확인
+  const liveUserParam = new URLSearchParams(window.location.search).get('liveUser');
+  console.log('현재 URL 검사:', $page.url.pathname, $page.url.search, '라이브 파라미터:', liveUserParam);
+  
+  // 클라이언트 모드 (라이브 유저 파라미터가 있는 경우)
+  if (liveUserParam && liveUserParam !== currentRoomId) {
+    handleLiveUserParam(liveUserParam);
+  }
+  // 호스트 모드 (라이브 유저 파라미터가 없는 경우)
+  else if (!liveUserParam && isLoggedIn) {
+    // 트랙이 변경되었는지 확인
+    const trackChanged = $currentTrack.name !== previousTrackName || 
+                         $currentTrack.artist !== previousTrackArtist ||
+                         $currentTrack.track_id !== previousTrackId;
+    
+    if (liveStatus === 'on' && isPlaying) {
+      // 최초 라이브 시작 또는 트랙 변경 시에만 이벤트 발생
+      if (previousLiveStatus !== 'on' || !currentRoomId || trackChanged) {
+        console.log(`🔴 라이브 시작 또는 트랙 변경: ${$currentTrack.name}`);
+        
+        previousLiveStatus = 'on';
+        previousTrackName = $currentTrack.name;
+        previousTrackArtist = $currentTrack.artist;
+        previousTrackId = $currentTrack.track_id;
+        isLiveHost = true;
+        
+        // 한 번만 발송하도록 상태 확인
+        const hostEmail = user.email.trim().toLowerCase();
+        socket.emit('liveOn', { 
+          user: { ...user, email: hostEmail }, 
+          track: {
+            ...$currentTrack,
+            streaming_id: currentYouTubeVideoId
+          }
+        });
+        console.log('호스트 liveOn 발신:', {
+          user: { ...user, email: hostEmail },
+          track: $currentTrack
+        });
+      }
+    } else if (liveStatus === 'off' && previousLiveStatus === 'on') {
+      // 라이브 종료
+      console.log('⚫ 라이브 종료');
+      
+      previousLiveStatus = 'off';
+      previousTrackName = '';
+      previousTrackArtist = '';
+      previousTrackId = '';
+      isLiveHost = false;
 
-				// 모든 재시도 타이머 정리
-				for (const timerId of syncRetryTimers.values()) {
-					clearInterval(timerId);
-				}
-				syncRetryTimers.clear();
-				
-				socket.emit('liveOff', { user });
-				console.log('호스트 liveOff 발신:', { user });
-				currentRoomId = ''; // roomId 초기화
-			}
-		}
-	}
+      // 모든 재시도 타이머 정리
+      for (const timerId of syncRetryTimers.values()) {
+        clearInterval(timerId);
+      }
+      syncRetryTimers.clear();
+      
+      socket.emit('liveOff', { user });
+      console.log('호스트 liveOff 발신:', { user });
+      currentRoomId = ''; // roomId 초기화
+    }
+  }
+}
 
 	$: {
   console.log('소켓 상태 확인:', {
