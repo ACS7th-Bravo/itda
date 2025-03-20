@@ -143,7 +143,7 @@ io.on('connection', (socket) => {
       
       
       
-      // 이 클라이언트를 대기 목록에 추가!
+      // 이 클라이언트를 대기 목록에 추가!!
       if (!pendingClientMap.has(roomId)) {
         pendingClientMap.set(roomId, new Set());
       }

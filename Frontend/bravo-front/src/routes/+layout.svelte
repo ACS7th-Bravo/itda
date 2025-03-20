@@ -665,7 +665,7 @@ $: {
       const roomId = liveUserParam.trim();
       console.log(`🔍 URL 파라미터 변경 감지: liveUser=${roomId}`);
       
-      // 소켓이 연결된 상태에서만 방 참여 요청 보내기!
+      // 소켓이 연결된 상태에서만 방 참여 요청 보내기!!
       socket.emit('joinRoom', { roomId });
       console.log(`📤 URL 변경으로 인한 joinRoom 이벤트 전송: ${roomId}`);
     }
