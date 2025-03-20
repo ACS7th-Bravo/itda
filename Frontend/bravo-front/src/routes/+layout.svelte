@@ -1888,5 +1888,56 @@ $: if (socket && socket.connected) {
    align-items: center; /* 세로 정렬: 가운데 정렬 */
    gap: 10px;          /* "It Da!"와 토글 버튼 사이의 간격 */
  }
+
+ /* 반응형 */
+ @media only screen and (max-aspect-ratio: 1/1) {
+  .layout {
+    flex-direction: row;
+    height: auto;
+  }
+  .sidebar {
+    width: 15%;
+    padding: 5px;
+
+  }
+  .main-content {
+    width: 100%;
+	height: 100%;
+  }
+  /* 제목 및 네비게이션 글씨 크기 조정 */
+  .sidebar h2 a {
+    font-size: 1.1rem;
+  }
+  .sidebar h3 {
+    font-size: 1.1rem;
+  }
+  .sidebar ul {
+	padding-left: 2px;
+  }
+  li a {
+    font-size: 0.8rem;
+  }
+  /* 메인 플레이어와 기타 요소도 모바일에 맞게 축소 */
+  .player {
+    padding: 0 20px;
+    height: 60px;
+  }
+  .player img {
+    width: 40px;
+    height: 40px;
+  }
+  .player-track-info {
+    width: auto;
+  }
+  .progress-bar {
+    width: 60%;
+  }
+  .player button {
+    font-size: 20px; /* 기존 40px에서 줄임 */
+  }
+  .volume-control {
+    display: none;
+  }
+}
  </style>
  
