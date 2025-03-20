@@ -125,7 +125,9 @@ io.on('connection', (socket) => {
     
     // 클라이언트에게 방에 참여했다고 응답
     socket.emit('roomJoined', { roomId });
-    
+    console.log(`현재 roomHostMap:`, Array.from(roomHostMap.entries()));
+
+
     // 해당 방의 호스트가 있는지 확인
     const hostSocketId = roomHostMap.get(roomId);
     
@@ -137,8 +139,11 @@ io.on('connection', (socket) => {
         clientId: socket.id,
         roomId: roomId
       });
+
       
-      // 이 클라이언트를 대기 목록에 추가
+      
+      
+      // 이 클라이언트를 대기 목록에 추가!
       if (!pendingClientMap.has(roomId)) {
         pendingClientMap.set(roomId, new Set());
       }
