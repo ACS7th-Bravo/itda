@@ -155,7 +155,7 @@
     
   </style>
     
-  <h1>It-Da에서 좋아하는 가수를 검색해보세요</h1>
+  <h1>It-Da에서 좋아하는 음악을 검색해보세요</h1>
     
 <!-- 새로 추가되는 부분: WavyBackground로 슬라이더 배경 적용 -->
 
@@ -189,9 +189,9 @@
 
     
   <p>
-    It-Da<br>s
+    It-Da<br>
     Search and translate your favorite song<br>
-    you can share your mood
+    You can share your mood
   </p>
 
 
