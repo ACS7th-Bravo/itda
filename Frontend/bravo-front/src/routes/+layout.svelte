@@ -1293,7 +1293,7 @@ $: if (socket && socket.connected) {
 	<div class="main-content">
 	   <div class="inner-main">
 		  <div class="left-area">
-			 <h1 class="typing">It Da!</h1>
+			 <h1 class="typing">It Da test</h1>
 			 {#if isLoggedIn}
 			   <div class="live-toggle-container">
 				<label class="toggle-switch">
