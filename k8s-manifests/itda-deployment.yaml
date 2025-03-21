@@ -9,6 +9,7 @@ metadata:
   labels:
     app: itda-ui
 spec:
+  revisionHistoryLimit: 2
   replicas: 3
   selector:
     matchLabels:
@@ -60,6 +61,7 @@ metadata:
   labels:
     app: itda-auth
 spec:
+  revisionHistoryLimit: 2
   replicas: 3
   selector:
     matchLabels:
@@ -127,6 +129,7 @@ metadata:
   labels:
     app: itda-search
 spec:
+  revisionHistoryLimit: 2
   replicas: 3
   selector:
     matchLabels:
@@ -194,6 +197,7 @@ metadata:
   labels:
     app: itda-lyrics
 spec:
+  revisionHistoryLimit: 2
   replicas: 3
   selector:
     matchLabels:
@@ -261,6 +265,7 @@ metadata:
   labels:
     app: itda-translation
 spec:
+  revisionHistoryLimit: 2
   replicas: 3
   selector:
     matchLabels:
@@ -328,6 +333,7 @@ metadata:
   labels:
     app: itda-playlist
 spec:
+  revisionHistoryLimit: 2
   replicas: 3
   selector:
     matchLabels:
