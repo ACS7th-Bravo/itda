@@ -49,7 +49,7 @@ sonarqube-scan:
       -Dsonar.sources=. \
       -Dsonar.host.url=$SONAR_HOST_URL \
       -Dsonar.login=$GITLAB_SONAR_TOKEN \
-      -Dsonar.qualitygate.wait=true
+      -Dsonar.qualitygate.wait=true \
       -Dsonar.exclusions="**/.attach_pid*"
 
     # $? : 직전 명령(sonar-scanner)의 종료 코드
