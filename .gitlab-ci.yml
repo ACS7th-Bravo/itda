@@ -40,6 +40,9 @@ sonarqube-scan:
       exit 0
     fi
 
+    # (선택) 임시 파일 삭제
+    find . -name ".attach_pid*" -exec rm -f {} \;
+
     # SonarQube 분석 실행
     sonar-scanner \
       -Dsonar.projectKey=$SONAR_PROJECT_KEY \
@@ -47,6 +50,7 @@ sonarqube-scan:
       -Dsonar.host.url=$SONAR_HOST_URL \
       -Dsonar.login=$GITLAB_SONAR_TOKEN \
       -Dsonar.qualitygate.wait=true
+      -Dsonar.exclusions="**/.attach_pid*"
 
     # $? : 직전 명령(sonar-scanner)의 종료 코드
     # 0이면 성공, 그 외는 실패
@@ -65,6 +69,7 @@ sonarqube-scan:
       exit 1
     fi
   allow_failure: false
+  
 
 # 3) Docker 빌드
 build:
