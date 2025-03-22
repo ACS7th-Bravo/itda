@@ -40,9 +40,6 @@ sonarqube-scan:
       exit 0
     fi
 
-    # (선택) 임시 파일 삭제
-    find . -name ".attach_pid*" -exec rm -f {} \;
-
     # SonarQube 분석 실행
     sonar-scanner \
       -Dsonar.projectKey=$SONAR_PROJECT_KEY \
