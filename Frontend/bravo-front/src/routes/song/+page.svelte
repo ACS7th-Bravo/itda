@@ -2,7 +2,7 @@
 
 <script>
 	import { getContext, onMount, tick, onDestroy } from 'svelte';
-	import { writable } from 'svelte/store';
+	import { writable, get } from 'svelte/store';
 	import Lyrics from './lyrics/+page.svelte';
 	import ColorThief from 'colorthief'; // ==== Added: ColorThief import
 	import { page } from '$app/stores'; // === 추가: page 스토어 임포트 ===
@@ -12,8 +12,12 @@
 	let currentTrack = getContext('currentTrack');
 	let showLyrics = getContext('lyricsExpanded');
  
-	// === 추가: 라이브 모드 감지를 위한 변수 선언 ===
-   let liveUserParam = '';
+	   // === 추가: 라이브 관련 컨텍스트 가져오기 ===03-23
+	   let currentRoomIdStore = getContext('currentRoomId');
+	let isLiveMode = getContext('isLiveMode');
+	let liveUserParam = '';
+	let leavingPage = false;  // 페이지 떠나는 중인지 표시
+	// === 추가 끝 ===03-23
  
    
  
@@ -69,17 +73,36 @@
 	   }
 	}
  
-	function dispatchJoinRoomEvent(roomId) {
-	 if (roomId) {
-	   // 전역 이벤트로 dispatch하여 layout에서 처리할 수 있도록 함(라이브)
+	   // === 수정: 라이브 참여 이벤트 발송 함수 ===03-23
+	   function dispatchJoinRoomEvent(roomId) {
+	  if (roomId && !leavingPage) {
+	   // 전역 이벤트로 dispatch하여 layout에서 처리할 수 있도록 함
 	   const joinEvent = new CustomEvent('joinLiveRoom', { 
 		 detail: { roomId },
 		 bubbles: true 
 	   });
 	   window.dispatchEvent(joinEvent);
 	   console.log(`🔔 Song 페이지에서 joinLiveRoom 이벤트 발신: ${roomId}`);
-	 }
-   }
+	  }
+	}
+	// === 수정 끝 ===03-23
+ 
+	   // === 추가: 라이브 룸 나가기 함수 ===03-23
+	   function leaveLiveRoom() {
+	  const currentRoomId = get(currentRoomIdStore);
+	  if (currentRoomId) {
+	   console.log(`🚪 라이브 룸 나가기: ${currentRoomId}`);
+	   // 전역 이벤트로 dispatch하여 layout에서 처리할 수 있도록 함
+	   const leaveEvent = new CustomEvent('leaveLiveRoom', { 
+		 detail: { roomId: currentRoomId },
+		 bubbles: true 
+	   });
+	   window.dispatchEvent(leaveEvent);
+	  }
+	}
+	// === 추가 끝 ===03-23
+ 
+ 
 	onMount(() => {
 	   if (songPage) {
 		  songPage.addEventListener('scroll', handleScroll);
@@ -95,18 +118,27 @@
 	   dispatchJoinRoomEvent(liveUserParam);
 	 }
 	   return () => {
+		  // === 추가: 페이지 언마운트 시 라이브 룸 나가기 ===03-23
+		  leavingPage = true;
+		 leaveLiveRoom();
+		 // === 추가 끝 ===03-23
+		 
 		  if (songPage) songPage.removeEventListener('scroll', handleScroll);
 	   };
 	});
  
-	// === 추가: page 스토어 변경 감지하여 liveUser 파라미터 확인 ===(라이브브)
+	// === 수정: URL 변경 감지 로직 개선 ===03-23
 	$: {
 	 if ($page && $page.url) {
 	   const urlParams = new URLSearchParams($page.url.search);
 	   const newLiveUserParam = urlParams.get('liveUser');
 	   
 	   // liveUser 파라미터가 변경되었을 때만 처리
-	   if (newLiveUserParam !== liveUserParam) {
+	   if (newLiveUserParam !== liveUserParam && !leavingPage) {
+	   // 이전 라이브 룸에서 나가기===03-23
+	   if (liveUserParam) {
+		  leaveLiveRoom();
+		 }
 		 liveUserParam = newLiveUserParam;
 		 
 		 if (liveUserParam) {
@@ -116,7 +148,7 @@
 	   }
 	 }
    }
-   // === 추가 끝 ===
+   // === 수정 끝 ===03-23
  
 	/* --- 추가된 부분: 번역 보정 인디케이터 애니메이션 --- */
 	let indicatorCycle = ['번역 보정 진행중.', '번역 보정 진행중..', '번역 보정 진행중...'];
@@ -352,6 +384,13 @@
 	   bind:this={headerContainer}
 	   style="transform: scale({$headerScale}) translateY({$headerTranslateY}px);"
 	>
+ 
+	<!-- === 추가: 라이브 모드 표시기 === 03-23-->
+	{#if $isLiveMode}
+	  <div class="live-indicator">🔴 LIVE</div>
+	{/if}
+	<!-- === 추가 끝 === 03-23-->
+ 
 	<!-- <img crossOrigin="anonymous" bind:this={albumImageEl} src={$currentTrack.albumImage} alt="Album Cover" class="song-image" /> -->
 	<img src={$currentTrack.albumImage} alt="Album Cover" class="song-image" />
 	
@@ -557,4 +596,32 @@
 	   padding: 20px;
 	   text-align: center;
 	}
+ 
+	/* === 추가: 라이브 표시기 스타일 ===-03-23 */
+	.live-indicator {
+	  position: absolute;
+	  top: -30px;
+	  left: 50%;
+	  transform: translateX(-50%);
+	  background-color: rgba(255, 0, 0, 0.7);
+	  color: white;
+	  padding: 5px 15px;
+	  border-radius: 20px;
+	  font-weight: bold;
+	  animation: pulse 2s infinite;
+	}
+	
+	@keyframes pulse {
+	  0% {
+	   opacity: 1;
+	  }
+	  50% {
+	   opacity: 0.6;
+	  }
+	  100% {
+	   opacity: 1;
+	  }
+	}
+	/* === 추가 끝 === */
  </style>
+ 
