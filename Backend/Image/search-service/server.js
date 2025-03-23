@@ -53,17 +53,17 @@ app.use('/api/live', liveRouter); // 추가
 
 // 🔹 Liveness Probe
 app.get('/healthz', (req, res) => {
-  console.log(`${new Date().toISOString()} - 🔹 Search Liveness: `);
+  //console.log(`${new Date().toISOString()} - 🔹 Search Liveness: `);
   res.status(200).send('Search OK');
-  console.log(`${new Date().toISOString()} - 🔹 Search Liveness: OK ✅\n`);
+  //console.log(`${new Date().toISOString()} - 🔹 Search Liveness: OK ✅\n`);
 });
 
 // 🟢 Readiness Probe: 애플리케이션이 특정 리소스(예: 환경 변수)를 정상적으로 읽을 수 있는지 확인
 app.get('/ready', (req, res) => {
-  console.log(`${new Date().toISOString()} - 🔹 Search Readiness: `);
+  //console.log(`${new Date().toISOString()} - 🔹 Search Readiness: `);
   if (SPOTIFY_CLIENT_ID && SPOTIFY_CLIENT_SECRET && YOUTUBE_API_KEYS && REDIS_URL) {
     res.status(200).send('Search READY');
-    console.log(`${new Date().toISOString()} - 🔹 Search Readiness: READY 😋\n`);
+    //console.log(`${new Date().toISOString()} - 🔹 Search Readiness: READY 😋\n`);
   } else {
     res.status(503).send('Search NOT READY');
     console.log(`${new Date().toISOString()} - 🔹 Search Readiness: NOT READY 💀\n`);

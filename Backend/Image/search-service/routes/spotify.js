@@ -104,7 +104,7 @@ router.get("/search", async (req, res) => {
       };
     });
 
-    console.log("🔍 Spotify API 응답 결과:", JSON.stringify(results, null, 2));
+    //console.log("🔍 Spotify API 응답 결과:", JSON.stringify(results, null, 2));
     res.json(results);
   } catch (error) {
     console.error("❌ Error in /api/spotify/search:", error);
