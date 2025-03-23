@@ -114,7 +114,7 @@ metadata:
   name: itda-redis-svc
   namespace: itda-redis-ns
 spec:
-  type: ClusterIP
+  type: LoadBalancer
   selector:
     app: itda-redis
   ports:
