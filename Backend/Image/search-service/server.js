@@ -306,34 +306,7 @@ io.on('connection', (socket) => {
   });
   // ===== 수정된 부분 끝 =====
 
-  socket.on('disconnect', () => {
-    console.log(`클라이언트 연결 해제: ${socket.id}`);
-
-    // ===== 추가된 부분 시작 =====
-    // 연결 해제된 소켓이 호스트인 경우 처리
-    // roomHostMap에서 이 소켓이 호스트인 방 찾기
-    for (const [roomId, hostSocketId] of roomHostMap.entries()) {
-      if (hostSocketId === socket.id) {
-        console.log(`🔴 호스트 ${socket.id} 연결 해제: 방 ${roomId}`);
-        roomHostMap.delete(roomId);
-        pendingClientMap.delete(roomId);
-        break;
-      }
-    }
-    
-    // 연결 해제된 소켓이 대기 중인 클라이언트인 경우 처리
-    for (const [roomId, clientSet] of pendingClientMap.entries()) {
-      if (clientSet.has(socket.id)) {
-        clientSet.delete(socket.id);
-        console.log(`🔴 대기 중인 클라이언트 ${socket.id} 연결 해제: 방 ${roomId}`);
-      }
-    }
-
-  });
-});
-
-
-// === 추가: liveUpdate 이벤트 핸들러 ===03-23
+  // === 추가: liveUpdate 이벤트 핸들러 ===03-23
 socket.on('liveUpdate', async (data) => {
   const { user, track, roomId, currentTime } = data;
   
@@ -368,7 +341,7 @@ socket.on('liveUpdate', async (data) => {
     console.error(`❌ Redis 업데이트 실패: ${error.message}`);
   }
 });
-// === 추가 끝 ===
+// === 추가 끝 ===03-23
 
 // === 추가: 재생 상태 변경 이벤트 핸들러 ===
 socket.on('playStateChanged', (data) => {
@@ -416,6 +389,37 @@ socket.on('leaveLiveRoom', (data) => {
   }
 });
 // === 추가 끝 ===03-23
+
+  socket.on('disconnect', () => {
+    console.log(`클라이언트 연결 해제: ${socket.id}`);
+
+    // ===== 추가된 부분 시작 =====
+    // 연결 해제된 소켓이 호스트인 경우 처리
+    // roomHostMap에서 이 소켓이 호스트인 방 찾기
+    for (const [roomId, hostSocketId] of roomHostMap.entries()) {
+      if (hostSocketId === socket.id) {
+        console.log(`🔴 호스트 ${socket.id} 연결 해제: 방 ${roomId}`);
+        roomHostMap.delete(roomId);
+        pendingClientMap.delete(roomId);
+        break;
+      }
+    }
+    
+    // 연결 해제된 소켓이 대기 중인 클라이언트인 경우 처리
+    for (const [roomId, clientSet] of pendingClientMap.entries()) {
+      if (clientSet.has(socket.id)) {
+        clientSet.delete(socket.id);
+        console.log(`🔴 대기 중인 클라이언트 ${socket.id} 연결 해제: 방 ${roomId}`);
+      }
+    }
+
+  });
+});
+
+
+
+
+
 
 
 server.listen(PORT, () => {
