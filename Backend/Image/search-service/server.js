@@ -306,90 +306,6 @@ io.on('connection', (socket) => {
   });
   // ===== 수정된 부분 끝 =====
 
-  // === 추가: liveUpdate 이벤트 핸들러 ===03-23
-socket.on('liveUpdate', async (data) => {
-  const { user, track, roomId, currentTime } = data;
-  
-  if (!roomId) {
-    console.log('❌ roomId가 없어 업데이트 불가');
-    return;
-  }
-  
-  // 방에 있는 모든 클라이언트에게 업데이트 데이터 전송
-  io.to(roomId).emit('liveSync', {
-    user,
-    track,
-    currentTime,
-    initialSync: false // 초기 동기화가 아닌 업데이트임
-  });
-  
-  console.log(`🔄 방 ${roomId}에 라이브 업데이트 전송, 트랙: ${track.name}`);
-  
-  // Redis에 트랙 정보 업데이트
-  try {
-    const userEmail = user.email.trim().toLowerCase();
-    const existingSession = await app.locals.redis.hGet('liveSessions', userEmail);
-    
-    if (existingSession) {
-      const parsedSession = JSON.parse(existingSession);
-      parsedSession.track = track;
-      
-      await app.locals.redis.hSet('liveSessions', userEmail, JSON.stringify(parsedSession));
-      console.log(`✅ Redis에 트랙 정보 업데이트: ${userEmail}, 트랙: ${track.name}`);
-    }
-  } catch (error) {
-    console.error(`❌ Redis 업데이트 실패: ${error.message}`);
-  }
-});
-// === 추가 끝 ===03-23
-
-// === 추가: 재생 상태 변경 이벤트 핸들러 ===
-socket.on('playStateChanged', (data) => {
-  const { isPaused, roomId } = data;
-  
-  if (!roomId) {
-    console.log('❌ roomId가 없어 상태 변경 불가');
-    return;
-  }
-  
-  // 방에 있는 모든 클라이언트에게 재생 상태 전송
-  io.to(roomId).emit('playStateUpdate', {
-    isPaused
-  });
-  
-  console.log(`🎮 방 ${roomId}에 재생 상태 변경 전송: ${isPaused ? '일시정지' : '재생'}`);
-});
-// === 추가 끝 ===
-
-// === 추가: 시간 업데이트 이벤트 핸들러 ===
-socket.on('timeUpdate', (data) => {
-  const { currentTime, roomId } = data;
-  
-  if (!roomId) {
-    console.log('❌ roomId가 없어 시간 업데이트 불가');
-    return;
-  }
-  
-  // 방에 있는 모든 클라이언트에게 시간 업데이트 전송
-  io.to(roomId).emit('seekUpdate', {
-    currentTime
-  });
-  
-  console.log(`⏱️ 방 ${roomId}에 시간 업데이트 전송: ${currentTime}`);
-});
-// === 추가 끝 ===
-
-// === 추가: 클라이언트가 라이브 룸을 나가는 이벤트 핸들러 ===
-socket.on('leaveLiveRoom', (data) => {
-  const { roomId } = data;
-  
-  if (roomId) {
-    socket.leave(roomId);
-    console.log(`👋 클라이언트 ${socket.id}가 방 ${roomId}에서 나감`);
-  }
-});
-// === 추가 끝 ===03-23
-
   socket.on('disconnect', () => {
     console.log(`클라이언트 연결 해제: ${socket.id}`);
 
@@ -415,11 +331,6 @@ socket.on('leaveLiveRoom', (data) => {
 
   });
 });
-
-
-
-
-
 
 
 server.listen(PORT, () => {
