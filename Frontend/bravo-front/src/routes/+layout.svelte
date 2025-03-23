@@ -65,6 +65,13 @@
 	let currentQueueStore = writable([]); // 재생할 트랙들의 배열 (검색 또는 플레이리스트에 따라 달라짐)
 	setContext('currentQueue', currentQueueStore); // 하위 페이지에서 사용 가능
  
+	// === 추가: 라이브 관련 컨텍스트 생성 및 공유 ===03-23
+	let isLiveMode = writable(false); // 라이브 모드 상태 저장
+	let currentRoomIdStore = writable('');
+	setContext('isLiveMode', isLiveMode);
+	setContext('currentRoomId', currentRoomIdStore); // 현재 방 ID 공유
+	// === 추가 끝 ===
+
 	// ✅ 프로그레스 바 관련 변수
 	let currentTime = 0;
 	let duration = 0;
@@ -179,6 +186,22 @@
  
 		  currentYouTubeVideoId = videoId;
 		  currentTrackIndex = index;
+
+		  // === 추가: 라이브 모드인 경우 방에 있는 클라이언트들에게 트랙 변경 알림 ===03-23
+		  if (liveStatus === 'on' && socket && socket.connected && currentRoomId) {
+			console.log('트랙 변경 감지, 라이브 동기화...');
+			const hostEmail = user.email.trim().toLowerCase();
+			socket.emit('liveUpdate', { 
+			  user: { ...user, email: hostEmail }, 
+			  track: {
+				...track,
+				streaming_id: videoId
+			  },
+			  roomId: currentRoomId,
+			  currentTime: 0 // 새로운 트랙은 처음부터 재생
+			});
+		  }
+		  // === 추가 끝 ===
  
 		  // 백엔드에 트랙 정보 저장 요청 (검색 API에서 반환된 평탄화된 필드 사용)
 		  fetch(`${backendUrl}/api/track`, {
@@ -310,6 +333,16 @@
 	function seekTrack(event) {
 	   const newTime = (event.target.value / 100) * duration;
 	   youtubePlayer.seekTo(newTime, true);
+
+	   // === 추가: 라이브 모드인 경우 시간 이동 동기화 ===03-23
+	   if (liveStatus === 'on' && socket && socket.connected && currentRoomId) {
+		 socket.emit('timeUpdate', { 
+		   currentTime: newTime,
+		   roomId: currentRoomId 
+		 });
+		 console.log('시간 이동 동기화:', newTime);
+	   }
+	   // === 추가 끝 ===
 	}
  
 	// ✅ 일시정지 / 재생 기능 유지
@@ -321,6 +354,14 @@
 			 youtubePlayer.playVideo();
 		  }
 		  isPlaying = !isPlaying;
+
+		  // === 추가: 라이브 모드인 경우 일시정지/재생 상태 동기화 ===03-23
+		  if (liveStatus === 'on' && socket && socket.connected && currentRoomId) {
+			const playState = { isPaused: !isPlaying, roomId: currentRoomId };
+			socket.emit('playStateChanged', playState);
+			console.log('재생 상태 변경 동기화:', playState);
+		  }
+		   // === 추가 끝 ===
 	   }
 	}
  
@@ -372,6 +413,11 @@ function handleLiveUserParam(liveUserParam) {
       console.log(`🔗 클라이언트가 방 참여 요청: ${roomId}`);
       socket.emit('joinRoom', { roomId });
       console.log(`📤 joinRoom 이벤트 전송: ${roomId}`);
+
+	  // === 추가: 로컬 스토어 업데이트 ===03-23
+	  currentRoomIdStore.set(roomId);
+		  isLiveMode.set(true);
+		  // === 추가 끝 ===
     } else {
       console.log(`⚠️ 이미 방 ${roomId}에 참여 중입니다.`);
     }
@@ -381,6 +427,11 @@ function handleLiveUserParam(liveUserParam) {
 ///온마운트3 시작
 onMount(async () => {
 	console.log('Song 페이지 마운트됨, URL:', window.location.href);
+
+	 // === 추가: 페이지 언로드 이벤트 리스너 등록 ===03-23
+	 window.addEventListener('beforeunload', handleBeforeUnload);
+	  // === 추가 끝 ===
+
   // 1. 토큰 관련 처리
   const urlParams = new URLSearchParams(window.location.search);
   const tokenFromUrl = urlParams.get('token');
@@ -470,6 +521,23 @@ onMount(async () => {
     // 새로운 코드: 소켓 연결 상태 확인 및 디버깅
     socket.on('connect', () => {
       console.log(`⭐ 소켓 연결됨: ${socket.id}`);
+
+	  // === 추가: 호스트 상태 복원 시도 (페이지 새로고침 시 라이브 상태 유지) ===03-23
+	  if (liveStatus === 'on' && isLoggedIn && !currentRoomId) {
+			console.log('라이브 상태 복원 시도...');
+			const hostEmail = user.email.trim().toLowerCase();
+			// 현재 재생 중인 트랙이 있는 경우에만 발신
+			if ($currentTrack.name !== 'IT-DA' && currentYouTubeVideoId) {
+			  socket.emit('liveOn', { 
+				user: { ...user, email: hostEmail }, 
+				track: {
+				  ...$currentTrack,
+				  streaming_id: currentYouTubeVideoId
+				}
+			  });
+			}
+		  }
+		  // === 추가 끝 ===
       
       // 연결 직후 URL 파라미터 확인
       const liveUserParam = urlParams.get('liveUser');
@@ -481,8 +549,31 @@ onMount(async () => {
         // 연결 직후 방 참여 요청 전송
         socket.emit('joinRoom', { roomId });
         console.log(`📤 joinRoom 이벤트 전송: ${roomId}`);
+
+		// === 추가: 로컬 스토어 업데이트 ===03-23
+		currentRoomIdStore.set(roomId);
+			isLiveMode.set(true);
+			// === 추가 끝 ===
+
+		
       }
     });
+
+		// === 추가: 소켓 재연결 이벤트 처리 (호스트 상태 복원) ===03-23
+		socket.on('reconnect', () => {
+		  console.log('소켓 재연결됨, 라이브 상태 확인...');
+		  if (liveStatus === 'on' && isLoggedIn) {
+			const hostEmail = user.email.trim().toLowerCase();
+			socket.emit('liveOn', { 
+			  user: { ...user, email: hostEmail }, 
+			  track: {
+				...$currentTrack,
+				streaming_id: currentYouTubeVideoId
+			  }
+			});
+		  }
+		});
+		// === 추가 끝 ===03-23
     
     socket.on('connect_error', (error) => {
       console.error(`❌ 소켓 연결 오류: ${error.message}`);
@@ -492,6 +583,10 @@ onMount(async () => {
     socket.on('roomJoined', (data) => {
       console.log(`✅ 클라이언트가 방에 성공적으로 입장: ${data.roomId}`);
       currentRoomId = data.roomId;
+	  // === 추가: 로컬 스토어 업데이트 ===03-23
+	  currentRoomIdStore.set(data.roomId);
+		  isLiveMode.set(true);
+		  // === 추가 끝 ===03-23
     });
     
     // 방 생성 관련 이벤트 핸들러
@@ -499,6 +594,10 @@ onMount(async () => {
       console.log(`✅ 새 룸 생성됨: ${data.roomId}`);
       currentRoomId = data.roomId;
       isLiveHost = true;
+	   // === 추가: 로컬 스토어 업데이트 ===03-23
+	   currentRoomIdStore.set(data.roomId);
+		  isLiveMode.set(true);
+		  // === 추가 끝 ===03-23
     });
     
     // 라이브 동기화 이벤트 핸들러
@@ -585,6 +684,30 @@ onMount(async () => {
         }
       }
     });
+
+	// === 추가: 재생 상태 변경 이벤트 처리 ===03-23
+	socket.on('playStateUpdate', (data) => {
+		  console.log('재생 상태 업데이트 수신:', data);
+		  if (youtubePlayer) {
+			if (data.isPaused) {
+			  youtubePlayer.pauseVideo();
+			  isPlaying = false;
+			} else {
+			  youtubePlayer.playVideo();
+			  isPlaying = true;
+			}
+		  }
+		});
+		// === 추가 끝 ===03-23
+
+		// === 추가: 시간 이동 이벤트 처리 ===03-23
+		socket.on('seekUpdate', (data) => {
+		  console.log('시간 이동 업데이트 수신:', data);
+		  if (youtubePlayer && data.currentTime !== undefined) {
+			youtubePlayer.seekTo(data.currentTime, true);
+		  }
+		});
+		// === 추가 끝 ===03-23
     
     // 클라이언트 참여 이벤트 핸들러 (호스트만 실행)
     socket.on('clientJoined', (data) => {
@@ -656,6 +779,23 @@ onMount(async () => {
         console.log(`⚠️ 호스트 상태 아님 또는 라이브 중이 아님: isHost=${isLiveHost}, liveStatus=${liveStatus}`);
       }
     });
+
+	// === 추가: 라이브 룸 나가기 이벤트 처리 ===03-23
+	socket.on('leaveLiveRoom', (event) => {
+		  if (socket && socket.connected && event.detail && event.detail.roomId) {
+			socket.emit('leaveLiveRoom', { roomId: event.detail.roomId });
+			console.log(`🚪 leaveLiveRoom 이벤트 발신: ${event.detail.roomId}`);
+			
+			// 클라이언트인 경우에만 roomId 초기화
+			if (!isLiveHost) {
+			  currentRoomId = '';
+			  currentRoomIdStore.set('');
+			  isLiveMode.set(false);
+			}
+		  }
+		});
+		// === 추가 끝 ===03-23
+
   } catch (error) {
     console.error('Socket.io 초기화 실패:', error);
   }
@@ -666,9 +806,37 @@ onMount(async () => {
     }
   });
 
+  // === 추가: 라이브 룸 나가기 이벤트 리스너 등록 ===03-23
+  window.addEventListener('leaveLiveRoom', (event) => {
+		if (socket && socket.connected && event.detail && event.detail.roomId) {
+		  socket.emit('leaveLiveRoom', { roomId: event.detail.roomId });
+		  console.log(`🚪 leaveLiveRoom 이벤트 발신: ${event.detail.roomId}`);
+		  
+		  // 클라이언트인 경우에만 roomId 초기화
+		  if (!isLiveHost) {
+			currentRoomId = '';
+			currentRoomIdStore.set('');
+			isLiveMode.set(false);
+		  }
+		}
+	  });
+	  // === 추가 끝 ===03-23
+
   // 이벤트 리스너 정리 함수 반환
   return () => {
+	// === 추가: beforeunload 이벤트 리스너 제거 ===03-23
+	window.removeEventListener('beforeunload', handleBeforeUnload);
+		// === 추가 끝 ===03-23
+
 	window.removeEventListener('joinLiveRoom', handleLiveUserParam);
+
+	// === 추가: leaveLiveRoom 이벤트 리스너 제거 ===03-23
+	window.removeEventListener('leaveLiveRoom', (event) => {
+		  if (socket && socket.connected && event.detail && event.detail.roomId) {
+			socket.emit('leaveLiveRoom', { roomId: event.detail.roomId });
+		  }
+		});
+		// === 추가 끝 ===03-23
 
     window.removeEventListener('playTrack', handlePlayTrack);
     if (scrollingSongNameElement) {
@@ -721,6 +889,11 @@ $: if (socket && socket.connected) {
           user: { ...user, email: hostEmail },
           track: $currentTrack
         });
+
+		// === 추가: 로컬 스토어 업데이트 ===03-23
+		isLiveMode.set(true);
+			// === 추가 끝 ===03-23
+
       }
     } else if (liveStatus === 'off' && previousLiveStatus === 'on') {
       // 라이브 종료
@@ -741,6 +914,12 @@ $: if (socket && socket.connected) {
       socket.emit('liveOff', { user });
       console.log('호스트 liveOff 발신:', { user });
       currentRoomId = ''; // roomId 초기화
+
+	  // === 추가: 로컬 스토어 업데이트 ===03-23
+	  currentRoomIdStore.set('');
+		  isLiveMode.set(false);
+		  // === 추가 끝 ===03-23
+
     }
   }
 }
@@ -1262,6 +1441,7 @@ $: if (socket && socket.connected) {
 	let liveStatus = 'off';
 	function toggleLive() {
 	   liveStatus = liveStatus === 'on' ? 'off' : 'on';
+	   isLiveMode.set(liveStatus === 'on');
 	}
  
  </script>
@@ -1293,7 +1473,7 @@ $: if (socket && socket.connected) {
 	<div class="main-content">
 	   <div class="inner-main">
 		  <div class="left-area">
-			 <h1 class="typing">It Da 👍❤️</h1>
+			 <h1 class="typing">It Da!</h1>
 			 {#if isLoggedIn}
 			   <div class="live-toggle-container">
 				<label class="toggle-switch">
