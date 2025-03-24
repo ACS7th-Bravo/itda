@@ -184,17 +184,15 @@ io.on('connection', (socket) => {
     socket.join(roomId);
     console.log(`Socket ${socket.id} joined room ${roomId}`);
     
-    // 클라이언트에게 방에 참여했다고 응답
-    socket.emit('roomJoined', { roomId });
-    console.log(`현재 roomHostMap:`, Array.from(roomHostMap.entries()));
-
-    // === 수정: Redis에서 직접 호스트 조회 ===
-    const hostSocketId = await getHostFromRedis(roomId);
+    
     
     // 디버깅용 로그
     const allHosts = await getAllHostsFromRedis();
     console.log(`현재 Redis의 roomHosts:`, allHosts);
     // === 수정 끝 ===
+
+    // === 수정: Redis에서 직접 호스트 조회 ===
+    const hostSocketId = await getHostFromRedis(roomId);
     
     if (hostSocketId) {
       // === 추가: 호스트 소켓이 실제로 연결되어 있는지 확인 ===
@@ -412,7 +410,6 @@ io.on('connection', (socket) => {
       const roomId = parsedSession.roomId;
 
       // === 수정: 메모리 맵과 Redis 모두에서 호스트 정보 제거 ===변경 필요
-      roomHostMap.delete(roomId);
       await removeHostFromRedis(roomId);
       // === 수정 끝 ===
       // 대기 중인 클라이언트 목록 제거
