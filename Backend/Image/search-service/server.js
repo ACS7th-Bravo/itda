@@ -131,27 +131,14 @@ async function removeHostFromRedis(roomId) {
   }
 }
 
-// 서버 시작 시 Redis에서 호스트 정보 로드하여 메모리 맵 초기화
-async function initializeRoomHostMap() {
+async function getAllHostsFromRedis() {
   try {
-    const redisHosts = await app.locals.redis.hGetAll('roomHosts');
-    if (redisHosts && Object.keys(redisHosts).length > 0) {
-      for (const [roomId, socketId] of Object.entries(redisHosts)) {
-        roomHostMap.set(roomId, socketId);
-      }
-      console.log(`🔄 Redis에서 ${Object.keys(redisHosts).length}개의 호스트 정보 로드 완료`);
-    } else {
-      console.log('📝 Redis에 저장된 호스트 정보 없음');
-    }
+    return await app.locals.redis.hGetAll('roomHosts');
   } catch (error) {
-    console.error(`❌ Redis 호스트 정보 초기화 실패: ${error.message}`);
+    console.error(`❌ Redis에서 모든 호스트 정보 조회 실패: ${error.message}`);
+    return {};
   }
 }
-
-
-// ===== 추가된 부분 시작 =====
-// 각 방의 호스트 소켓 ID를 저장하는 맵
-const roomHostMap = new Map(); // roomId -> hostSocketId
 
 // 각 방의 대기 중인 클라이언트(수신 확인을 보내지 않은) 목록
 const pendingClientMap = new Map(); // roomId -> Set of clientSocketIds
@@ -167,9 +154,6 @@ const io = new Server(server, {
   cors: { origin: "*" }
 });
 
-// === 추가: 서버 시작 시 Redis에서 호스트 정보 로드 ===
-initializeRoomHostMap().catch(err => console.error('호스트 맵 초기화 오류:', err));
-// === 추가 끝 ===
 
 io.on('connection', (socket) => {
   console.log(`새 클라이언트 연결: ${socket.id}`);
@@ -204,22 +188,14 @@ io.on('connection', (socket) => {
     socket.emit('roomJoined', { roomId });
     console.log(`현재 roomHostMap:`, Array.from(roomHostMap.entries()));
 
-    // === 수정: 메모리 맵에서 호스트 확인 후 없으면 Redis 확인 ===
-    let hostSocketId = roomHostMap.get(roomId);
-   
-
-    if (!hostSocketId) {
-      // 메모리 맵에 없으면 Redis에서 조회
-      hostSocketId = await getHostFromRedis(roomId);
-      
-      // Redis에서 찾았으면 메모리 맵에도 추가
-      if (hostSocketId) {
-        roomHostMap.set(roomId, hostSocketId);
-        console.log(`🔄 Redis에서 찾은 호스트 정보를 메모리 맵에 복원: ${roomId} -> ${hostSocketId}`);
-      }
-    }
+    // === 수정: Redis에서 직접 호스트 조회 ===
+    const hostSocketId = await getHostFromRedis(roomId);
+    
+    // 디버깅용 로그
+    const allHosts = await getAllHostsFromRedis();
+    console.log(`현재 Redis의 roomHosts:`, allHosts);
     // === 수정 끝 ===
-
+    
     if (hostSocketId) {
       // === 추가: 호스트 소켓이 실제로 연결되어 있는지 확인 ===
       const hostSocket = io.sockets.sockets.get(hostSocketId);
@@ -395,20 +371,20 @@ io.on('connection', (socket) => {
     }
 
     
-   // ===== 추가된 부분 시작 =====
-    // 이 소켓을 해당 방의 호스트로 등록
-    // === 수정: 메모리 맵과 Redis 모두 업데이트 ===
-    roomHostMap.set(roomId, socket.id);
-    await saveHostToRedis(roomId, socket.id);
-    console.log(`💻 호스트 등록: 방 ${roomId}의 호스트는 ${socket.id}`);
-    console.log(`현재 roomHostMap:`, Array.from(roomHostMap.entries()));
-    // ===== 추가된 부분 끝 =====
-  
-  // socket이 아직 방에 join하지 않았으면 join
-  if (!socket.rooms.has(roomId)) {
-    socket.join(roomId);
-  }
-  });
+   // === 수정: Redis에만 호스트 정보 저장 ===
+   await saveHostToRedis(roomId, socket.id);
+   // === 수정 끝 ===
+   
+   console.log(`💻 호스트 등록: 방 ${roomId}의 호스트는 ${socket.id}`);
+   
+   // 디버깅용 로그
+   const allHosts = await getAllHostsFromRedis();
+   console.log(`현재 Redis의 roomHosts:`, allHosts);
+ 
+   if (!socket.rooms.has(roomId)) {
+     socket.join(roomId);
+   }
+ });
 
   socket.on('liveOff', async (data) => {
     // === 추가: 입력 유효성 검사 ===
@@ -435,7 +411,7 @@ io.on('connection', (socket) => {
       const parsedSession = JSON.parse(existingSession);
       const roomId = parsedSession.roomId;
 
-      // === 수정: 메모리 맵과 Redis 모두에서 호스트 정보 제거 ===
+      // === 수정: 메모리 맵과 Redis 모두에서 호스트 정보 제거 ===변경 필요
       roomHostMap.delete(roomId);
       await removeHostFromRedis(roomId);
       // === 수정 끝 ===
@@ -566,58 +542,49 @@ socket.on('leaveLiveRoom', (data) => {
 });
 // === 추가 끝 ===03-23
 
-  socket.on('disconnect', () => {
-    console.log(`클라이언트 연결 해제: ${socket.id}`);
+// === 수정: disconnect 이벤트 핸들러를 async로 변경 ===
+socket.on('disconnect', async () => {
+  console.log(`클라이언트 연결 해제: ${socket.id}`);
 
-    // === 추가: 이벤트 타임스탬프 맵에서 제거 ===
-    eventTimestamps.delete(socket.id);
-    // === 추가 끝 ===
+  eventTimestamps.delete(socket.id);
 
-    // ===== 추가된 부분 시작 =====
-    // 연결 해제된 소켓이 호스트인 경우 처리
-    // roomHostMap에서 이 소켓이 호스트인 방 찾기
-
+  try {
+    // Redis에서 모든 roomHosts 정보 가져오기
+    const allRoomHosts = await getAllHostsFromRedis();
     
-
-    let hostRoomId = null;
-    for (const [roomId, hostSocketId] of roomHostMap.entries()) {
+    // 연결 해제된 소켓이 호스트인 방 찾기
+    for (const [roomId, hostSocketId] of Object.entries(allRoomHosts)) {
       if (hostSocketId === socket.id) {
-        hostRoomId = roomId;
+        // Redis에서 호스트 정보 제거
+        await removeHostFromRedis(roomId);
         
-        roomHostMap.delete(roomId);
         console.log(`🔴 호스트 ${socket.id} 연결 해제: 방 ${roomId}`);
+        
         // 해당 방의 모든 클라이언트에게 라이브 종료 알림
         io.to(roomId).emit('liveSync', { track: null, currentTime: 0 });
 
-         // Redis에서 정보 삭제 (비동기 작업)
-        (async () => {
-          try {
-            const userEmail = await app.locals.redis.get(`room:${roomId}`);
-            if (userEmail) {
-              await app.locals.redis.hDel('liveSessions', userEmail);
-              await app.locals.redis.del(`room:${roomId}`);
-              console.log(`❌ 호스트 연결 해제로 인한 라이브 세션 종료: ${userEmail}, roomId: ${roomId}`);
-            }
-          } catch (error) {
-            console.error(`❌ Redis 삭제 실패: ${error.message}`);
-          }
-        })();
-        
-        break;
+        // Redis에서 정보 삭제
+        const userEmail = await app.locals.redis.get(`room:${roomId}`);
+        if (userEmail) {
+          await app.locals.redis.hDel('liveSessions', userEmail);
+          await app.locals.redis.del(`room:${roomId}`);
+          console.log(`❌ 호스트 연결 해제로 인한 라이브 세션 종료: ${userEmail}, roomId: ${roomId}`);
+        }
       }
     }
-    
-    // 연결 해제된 소켓이 대기 중인 클라이언트인 경우 처리
-    for (const [roomId, clientSet] of pendingClientMap.entries()) {
-      if (clientSet.has(socket.id)) {
-        clientSet.delete(socket.id);
-        console.log(`🔴 대기 중인 클라이언트 ${socket.id} 연결 해제: 방 ${roomId}`);
-      }
+  } catch (error) {
+    console.error(`❌ 연결 해제 처리 중 오류: ${error.message}`);
+  }
+  // === 수정 끝 ===
+  
+  for (const [roomId, clientSet] of pendingClientMap.entries()) {
+    if (clientSet.has(socket.id)) {
+      clientSet.delete(socket.id);
+      console.log(`🔴 대기 중인 클라이언트 ${socket.id} 연결 해제: 방 ${roomId}`);
     }
-
-  });
+  }
 });
-
+});
 
 
 
