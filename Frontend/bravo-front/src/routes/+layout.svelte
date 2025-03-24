@@ -205,7 +205,8 @@
             user: { ...user, email: hostEmail }, 
             track: {
               ...track,
-              streaming_id: videoId
+              streaming_id: videoId,
+			  albumImage: track.imageUrl || '/default-album.png'  // 이미지 명시적 추가 방금금
             },
             roomId: currentRoomId,
             currentTime: 0 // 새로운 트랙은 처음부터 재생
@@ -646,10 +647,13 @@
 	   if (data && data.track) {
 		 // 곡 정보 및 플레이어 업데이트
 		 if (data.track.streaming_id) {
+			const albumImage = data.track.albumImage || '/default-album.png';
+      console.log(`앨범 이미지 경로: ${albumImage}`);
+      
 		   currentTrack.update((t) => ({
 			 ...t,
 			 ...data.track,
-			 albumImage: data.track.albumImage || '/default-album.png'
+			 albumImage: albumImage
 		   }));
 		   
 		   // streaming_id 저장
