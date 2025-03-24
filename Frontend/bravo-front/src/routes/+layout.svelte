@@ -167,6 +167,12 @@
 		 goto('/song');
 	   }
 	}
+
+	 // === 추가: 중복 이벤트 방지를 위한 타임스탬프 변수 ===
+	 let lastLiveUpdateTime = 0;
+  let lastTimeUpdateTime = 0;
+  let lastPlayStateChangeTime = 0;
+  // === 추가 끝 ===
   
 	// ✅ 전역 플레이어에서 곡 재생
 	// 준현 수정 - handlePlayTrack 부분 영문 이름 수정
@@ -189,18 +195,23 @@
  
 		 // === 추가: 라이브 모드인 경우 방에 있는 클라이언트들에게 트랙 변경 알림 ===03-23
 		 if (liveStatus === 'on' && socket && socket.connected && currentRoomId) {
-		  console.log('트랙 변경 감지, 라이브 동기화...');
-		  const hostEmail = user.email.trim().toLowerCase();
-		  socket.emit('liveUpdate', { 
-			user: { ...user, email: hostEmail }, 
-			track: {
-			 ...track,
-			 streaming_id: videoId
-			},
-			roomId: currentRoomId,
-			currentTime: 0 // 새로운 트랙은 처음부터 재생
-		  });
-		 }
+        const now = Date.now();
+        if (!lastLiveUpdateTime || now - lastLiveUpdateTime > 300) {
+          lastLiveUpdateTime = now;
+          
+          console.log('트랙 변경 감지, 라이브 동기화...');
+          const hostEmail = user.email.trim().toLowerCase();
+          socket.emit('liveUpdate', { 
+            user: { ...user, email: hostEmail }, 
+            track: {
+              ...track,
+              streaming_id: videoId
+            },
+            roomId: currentRoomId,
+            currentTime: 0 // 새로운 트랙은 처음부터 재생
+          });
+        }
+      }
 		 // === 추가 끝 ===
   
 		 // 백엔드에 트랙 정보 저장 요청 (검색 API에서 반환된 평탄화된 필드 사용)
@@ -336,14 +347,16 @@
  
 	   // === 추가: 라이브 모드인 경우 시간 이동 동기화 ===03-23
 	   if (liveStatus === 'on' && socket && socket.connected && currentRoomId) {
-		socket.emit('timeUpdate', { 
-		  currentTime: newTime,
-		  roomId: currentRoomId 
-		});
-		console.log('시간 이동 동기화:', newTime);
-	   }
-	   // === 추가 끝 ===
-	}
+      const now = Date.now();
+      if (!lastTimeUpdateTime || now - lastTimeUpdateTime > 300) {
+        lastTimeUpdateTime = now;
+        socket.emit('timeUpdate', { 
+          currentTime: newTime,
+          roomId: currentRoomId 
+        });
+        console.log('시간 이동 동기화:', newTime);
+      }
+    }
   
 	// ✅ 일시정지 / 재생 기능 유지
 	function togglePause() {
@@ -357,10 +370,14 @@
  
 		 // === 추가: 라이브 모드인 경우 일시정지/재생 상태 동기화 ===03-23
 		 if (liveStatus === 'on' && socket && socket.connected && currentRoomId) {
-		  const playState = { isPaused: !isPlaying, roomId: currentRoomId };
-		  socket.emit('playStateChanged', playState);
-		  console.log('재생 상태 변경 동기화:', playState);
-		 }
+        const now = Date.now();
+        if (!lastPlayStateChangeTime || now - lastPlayStateChangeTime > 300) {
+          lastPlayStateChangeTime = now;
+          const playState = { isPaused: !isPlaying, roomId: currentRoomId };
+          socket.emit('playStateChanged', playState);
+          console.log('재생 상태 변경 동기화:', playState);
+        }
+      }
 		  // === 추가 끝 ===
 	   }
 	}
@@ -612,6 +629,14 @@
 	 // 라이브 동기화 이벤트 핸들러
 	 socket.on('liveSync', (data) => {
 	   console.log('📡 liveSync 이벤트 수신:', data);
+	   // === 추가: 중복 처리 방지 ===
+	   const now = Date.now();
+        if (socket.lastLiveSyncTime && now - socket.lastLiveSyncTime < 200) {
+          console.log('⚠️ 중복 liveSync 이벤트 무시');
+          return;
+        }
+        socket.lastLiveSyncTime = now;
+        // === 추가 끝 ===
 	   
 	   if (data && data.track) {
 		 // 곡 정보 및 플레이어 업데이트
@@ -875,6 +900,13 @@
 						  $currentTrack.track_id !== previousTrackId;
 	 
 	 if (liveStatus === 'on' && isPlaying) {
+
+		// === 수정: 중복 이벤트 방지 로직 추가 ===
+		const now = Date.now();
+      if ((previousLiveStatus !== 'on' || !currentRoomId || trackChanged) && 
+          (!lastLiveUpdateTime || now - lastLiveUpdateTime > 5000)) {
+        lastLiveUpdateTime = now;
+        // === 수정 끝 ===
 	   // 최초 라이브 시작 또는 트랙 변경 시에만 이벤트 발생
 	   if (previousLiveStatus !== 'on' || !currentRoomId || trackChanged) {
 		 console.log(`🔴 라이브 시작 또는 트랙 변경: ${$currentTrack.name}`);
@@ -905,6 +937,11 @@
  
 	   }
 	 } else if (liveStatus === 'off' && previousLiveStatus === 'on') {
+		// === 수정: 중복 이벤트 방지 로직 추가 ===
+		const now = Date.now();
+      if (!lastLiveUpdateTime || now - lastLiveUpdateTime > 5000) {
+        lastLiveUpdateTime = now;
+        // === 수정 끝 ===
 	   // 라이브 종료
 	   console.log('⚫ 라이브 종료');
 	   
@@ -933,13 +970,13 @@
    }
  }
  
-	$: {
-   console.log('소켓 상태 확인:', {
-	 소켓존재: !!socket,
-	 연결상태: socket?.connected,
-	 현재룸ID: currentRoomId
-   });
- }
+// 	$: {
+//    console.log('소켓 상태 확인:', {
+// 	 소켓존재: !!socket,
+// 	 연결상태: socket?.connected,
+// 	 현재룸ID: currentRoomId
+//    });
+//  }
  
  
  //온마운트3 끝끝

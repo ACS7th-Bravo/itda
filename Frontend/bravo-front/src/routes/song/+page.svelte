@@ -19,6 +19,15 @@
 	let leavingPage = false;  // 페이지 떠나는 중인지 표시
 	// === 추가 끝 ===03-23
  
+	// === 추가: 디바운스 함수 - 중복 이벤트 처리 방지 ===
+	function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+  }
+  // === 추가 끝 ===
    
  
 	function toggleLyrics() {
@@ -73,34 +82,39 @@
 	   }
 	}
  
-	   // === 수정: 라이브 참여 이벤트 발송 함수 ===03-23
-	   function dispatchJoinRoomEvent(roomId) {
-	  if (roomId && !leavingPage) {
-	   // 전역 이벤트로 dispatch하여 layout에서 처리할 수 있도록 함
-	   const joinEvent = new CustomEvent('joinLiveRoom', { 
-		 detail: { roomId },
-		 bubbles: true 
-	   });
-	   window.dispatchEvent(joinEvent);
-	   console.log(`🔔 Song 페이지에서 joinLiveRoom 이벤트 발신: ${roomId}`);
-	  }
-	}
-	// === 수정 끝 ===03-23
+	  // === 수정: 중복 이벤트 방지를 위한 디바운스 적용 ===
+  const dispatchJoinRoomEvent = debounce((roomId) => {
+    if (roomId && !leavingPage) {
+      // 이미 참여 중인지 확인
+      const currentRoomId = get(currentRoomIdStore);
+      if (roomId === currentRoomId) {
+        console.log(`⚠️ 이미 방 ${roomId}에 참여 중입니다.`);
+        return;
+      }
+      
+      const joinEvent = new CustomEvent('joinLiveRoom', { 
+        detail: { roomId },
+        bubbles: true 
+      });
+      window.dispatchEvent(joinEvent);
+      console.log(`🔔 Song 페이지에서 joinLiveRoom 이벤트 발신: ${roomId}`);
+    }
+  }, 300);
+  // === 수정 끝 ===
  
-	   // === 추가: 라이브 룸 나가기 함수 ===03-23
-	   function leaveLiveRoom() {
-	  const currentRoomId = get(currentRoomIdStore);
-	  if (currentRoomId) {
-	   console.log(`🚪 라이브 룸 나가기: ${currentRoomId}`);
-	   // 전역 이벤트로 dispatch하여 layout에서 처리할 수 있도록 함
-	   const leaveEvent = new CustomEvent('leaveLiveRoom', { 
-		 detail: { roomId: currentRoomId },
-		 bubbles: true 
-	   });
-	   window.dispatchEvent(leaveEvent);
-	  }
-	}
-	// === 추가 끝 ===03-23
+	   // === 수정: 중복 이벤트 방지를 위한 디바운스 적용 ===
+  const leaveLiveRoom = debounce(() => {
+    const currentRoomId = get(currentRoomIdStore);
+    if (currentRoomId) {
+      console.log(`🚪 라이브 룸 나가기: ${currentRoomId}`);
+      const leaveEvent = new CustomEvent('leaveLiveRoom', { 
+        detail: { roomId: currentRoomId },
+        bubbles: true 
+      });
+      window.dispatchEvent(leaveEvent);
+    }
+  }, 300);
+  // === 수정 끝 ===
  
  
 	onMount(() => {
@@ -109,6 +123,14 @@
 	   }
 	   const urlParams = new URLSearchParams(window.location.search);
 	 liveUserParam = urlParams.get('liveUser');
+	 // === 추가: 중복 처리 방지 로직 ===
+	 if (liveUserParam) {
+      console.log(`🔍 Song 페이지에서 liveUser 파라미터 감지: ${liveUserParam}`);
+      
+      // 방 참여 요청 이벤트 발신 (디바운스 적용됨)
+      dispatchJoinRoomEvent(liveUserParam);
+    }
+    // === 추가 끝 ===
 	 
 	 if (liveUserParam) {
 	   isLiveMode = true;

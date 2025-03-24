@@ -106,6 +106,10 @@ const roomHostMap = new Map(); // roomId -> hostSocketId
 const pendingClientMap = new Map(); // roomId -> Set of clientSocketIds
 // ===== 추가된 부분 끝 =====
 
+// === 추가: 중복 이벤트 방지를 위한 제한 시간 맵 ===03-24
+const eventTimestamps = new Map(); // socketId -> { eventType: timestamp }
+// === 추가 끝 ===03-24
+
 // Socket.IO 통합 시작
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -115,10 +119,28 @@ const io = new Server(server, {
 io.on('connection', (socket) => {
   console.log(`새 클라이언트 연결: ${socket.id}`);
 
+  // === 추가: 소켓별 이벤트 타임스탬프 초기화 ===03-24
+  eventTimestamps.set(socket.id, {});
+  // === 추가 끝 ===03-24
+
   // ===== 수정된 부분 시작 =====
   socket.on('joinRoom', async (data) => {
+    // === 추가: 입력 유효성 검사 ===03-24
+    if (!data || !data.roomId) {
+      console.log(`❌ 유효하지 않은 joinRoom 요청: ${JSON.stringify(data)}`);
+      return;
+    }
+    // === 추가 끝 ===03-24
     const roomId = data.roomId.trim();
     console.log(`📢 클라이언트 ${socket.id}가 방 ${roomId} 참여 시도중...`);
+
+    // === 추가: 이미 방에 참여 중인지 확인 ===03-24
+    if (socket.rooms.has(roomId)) {
+      console.log(`ℹ️ 클라이언트 ${socket.id}는 이미 방 ${roomId}에 참여 중입니다.`);
+      socket.emit('roomJoined', { roomId });
+      return;
+    }
+    // === 추가 끝 ===03-24
 
     socket.join(roomId);
     console.log(`Socket ${socket.id} joined room ${roomId}`);
@@ -132,27 +154,36 @@ io.on('connection', (socket) => {
     const hostSocketId = roomHostMap.get(roomId);
     
     if (hostSocketId) {
-      console.log(`📣 방 ${roomId}의 호스트 ${hostSocketId}에게 클라이언트 참여 알림 전송`);
+      // === 추가: 호스트 소켓이 실제로 연결되어 있는지 확인 ===
+      const hostSocket = io.sockets.sockets.get(hostSocketId);
+      if (hostSocket) {
+      // === 추가 끝 ===
+        console.log(`📣 방 ${roomId}의 호스트 ${hostSocketId}에게 클라이언트 참여 알림 전송`);
 
-      // 호스트에게 새로운 클라이언트가 참여했음을 알림
-      io.to(hostSocketId).emit('clientJoined', { 
-        clientId: socket.id,
-        roomId: roomId
-      });
-
-      
-      
-      
-      // 이 클라이언트를 대기 목록에 추가!!
-      if (!pendingClientMap.has(roomId)) {
-        pendingClientMap.set(roomId, new Set());
+        // 호스트에게 새로운 클라이언트가 참여했음을 알림
+        io.to(hostSocketId).emit('clientJoined', { 
+          clientId: socket.id,
+          roomId: roomId
+        });
+        
+        // 이 클라이언트를 대기 목록에 추가
+        if (!pendingClientMap.has(roomId)) {
+          pendingClientMap.set(roomId, new Set());
+        }
+        pendingClientMap.get(roomId).add(socket.id);
+        
+        console.log(`🔄 클라이언트 ${socket.id}가 방 ${roomId}에 참여, 호스트 ${hostSocketId}에게 알림`);
+      } else {
+        console.log(`⚠️ 호스트 소켓 ${hostSocketId}가 연결되어 있지 않음. Redis 조회로 대체...`);
+        fallbackToRedis();
       }
-      pendingClientMap.get(roomId).add(socket.id);
-      
-      console.log(`🔄 클라이언트 ${socket.id}가 방 ${roomId}에 참여, 호스트 ${hostSocketId}에게 알림`);
     } else {
       console.log(`⚠️ 방 ${roomId}에 호스트가 없음. Redis에서 세션 정보 조회 시도...`);
-      // 호스트가 없는 경우 Redis에서 세션 정보 가져와서 직접 동기화
+      fallbackToRedis();
+    }
+    
+    // === 추가: Redis 폴백 함수 분리 ===
+    async function fallbackToRedis() {
       try {
         const userEmail = await app.locals.redis.get(`room:${roomId}`);
         if (userEmail) {
@@ -160,30 +191,49 @@ io.on('connection', (socket) => {
           const sessionData = await app.locals.redis.hGet('liveSessions', userEmail);
           if (sessionData) {
             const parsedSession = JSON.parse(sessionData);
-            socket.emit('liveSync', {
-              user: parsedSession.user,
-              track: parsedSession.track,
-              roomId: roomId,
-              initialSync: true
-            });
-            console.log(`🔄 호스트 없음, Redis에서 방 ${roomId} 정보 직접 전송`);
-          }else {
+            
+            // === 추가: 중복 전송 방지 ===
+            const timestamps = eventTimestamps.get(socket.id);
+            const now = Date.now();
+            if (!timestamps.liveSync || now - timestamps.liveSync > 500) {
+              timestamps.liveSync = now;
+              // === 추가 끝 ===
+              
+              socket.emit('liveSync', {
+                user: parsedSession.user,
+                track: parsedSession.track,
+                roomId: roomId,
+                initialSync: true
+              });
+              
+              console.log(`🔄 Redis에서 방 ${roomId} 정보 직접 전송`);
+            }
+          } else {
             console.log(`⚠️ Redis에서 세션 데이터를 찾을 수 없음: ${userEmail}`);
           }
         } else {
           console.log(`⚠️ Redis에서 roomId:${roomId}에 해당하는 userEmail을 찾을 수 없음`);
-          
         }
       } catch (error) {
         console.error(`❌ Redis에서 방 정보 가져오기 실패: ${error.message}`);
       }
     }
+    // === 추가 끝 ===
   });
 
   // 호스트가 클라이언트에게 현재 재생 정보 전송 (초기 또는 재시도)
   socket.on('hostSync', (data) => {
     const { clientId, roomId, track, currentTime } = data;
     
+    // === 추가: 중복 전송 방지 ===
+    const targetSocket = io.sockets.sockets.get(clientId);
+    if (targetSocket) {
+      const timestamps = eventTimestamps.get(targetSocket.id) || {};
+      const now = Date.now();
+      if (!timestamps.hostSync || now - timestamps.hostSync > 500) {
+        timestamps.hostSync = now;
+    // === 추가 끝 ===
+
     // 특정 클라이언트에게만 전송
     io.to(clientId).emit('liveSync', {
       track, 
@@ -193,6 +243,8 @@ io.on('connection', (socket) => {
     });
     
     console.log(`🎵 호스트 ${socket.id}가 클라이언트 ${clientId}에게 초기 동기화 데이터 전송, 현재 시간: ${currentTime}`);
+  }
+}
   });
   
   // 클라이언트가 동기화 데이터를 수신했다는 확인
@@ -207,7 +259,22 @@ io.on('connection', (socket) => {
   });
 
   socket.on('liveOn', async (data) => {
+    // === 추가: 입력 유효성 검사 ===
+    if (!data || !data.user || !data.user.email) {
+      console.log('❌ 유효하지 않은 liveOn 요청:', data);
+      return;
+    }
+    // === 추가 끝 ===
     const userEmail = data.user.email.trim().toLowerCase();
+
+    // === 추가: 중복 이벤트 방지 ===
+    const timestamps = eventTimestamps.get(socket.id) || {};
+    const now = Date.now();
+    if (timestamps.liveOn && now - timestamps.liveOn < 5000) {
+      return; // 5초 내 중복 요청 무시
+    }
+    timestamps.liveOn = now;
+    // === 추가 끝 ===
     
     // 이미 liveSessions에 있는지 확인
     const existingSession = await app.locals.redis.hGet('liveSessions', userEmail);
@@ -275,8 +342,23 @@ io.on('connection', (socket) => {
   });
 
   socket.on('liveOff', async (data) => {
+    // === 추가: 입력 유효성 검사 ===
+    if (!data || !data.user || !data.user.email) {
+      console.log('❌ 유효하지 않은 liveOff 요청:', data);
+      return;
+    }
+    // === 추가 끝 ===
     const userEmail = data.user.email.trim().toLowerCase();
     
+     // === 추가: 중복 이벤트 방지 ===
+     const timestamps = eventTimestamps.get(socket.id) || {};
+     const now = Date.now();
+     if (timestamps.liveOff && now - timestamps.liveOff < 5000) {
+       return; // 5초 내 중복 요청 무시
+     }
+     timestamps.liveOff = now;
+     // === 추가 끝 ===
+
     // 해당 사용자의 라이브 세션 정보 확인
     const existingSession = await app.locals.redis.hGet('liveSessions', userEmail);
     
@@ -314,6 +396,14 @@ socket.on('liveUpdate', async (data) => {
     console.log('❌ roomId가 없어 업데이트 불가');
     return;
   }
+
+  // 중복 업데이트 방지
+  const timestamps = eventTimestamps.get(socket.id) || {};
+  const now = Date.now();
+  if (timestamps.liveUpdate && now - timestamps.liveUpdate < 300) {
+    return; // 300ms 내 중복 업데이트 무시
+  }
+  timestamps.liveUpdate = now;
   
   // 방에 있는 모든 클라이언트에게 업데이트 데이터 전송
   io.to(roomId).emit('liveSync', {
@@ -351,6 +441,14 @@ socket.on('playStateChanged', (data) => {
     console.log('❌ roomId가 없어 상태 변경 불가');
     return;
   }
+
+  // 중복 상태 변경 방지
+  const timestamps = eventTimestamps.get(socket.id) || {};
+  const now = Date.now();
+  if (timestamps.playStateChanged && now - timestamps.playStateChanged < 300) {
+    return; // 300ms 내 중복 상태 변경 무시
+  }
+  timestamps.playStateChanged = now;
   
   // 방에 있는 모든 클라이언트에게 재생 상태 전송
   io.to(roomId).emit('playStateUpdate', {
@@ -369,6 +467,14 @@ socket.on('timeUpdate', (data) => {
     console.log('❌ roomId가 없어 시간 업데이트 불가');
     return;
   }
+
+  // 중복 시간 업데이트 방지
+  const timestamps = eventTimestamps.get(socket.id) || {};
+  const now = Date.now();
+  if (timestamps.timeUpdate && now - timestamps.timeUpdate < 300) {
+    return; // 300ms 내 중복 시간 업데이트 무시
+  }
+  timestamps.timeUpdate = now;
   
   // 방에 있는 모든 클라이언트에게 시간 업데이트 전송
   io.to(roomId).emit('seekUpdate', {
@@ -393,14 +499,37 @@ socket.on('leaveLiveRoom', (data) => {
   socket.on('disconnect', () => {
     console.log(`클라이언트 연결 해제: ${socket.id}`);
 
+    // === 추가: 이벤트 타임스탬프 맵에서 제거 ===
+    eventTimestamps.delete(socket.id);
+    // === 추가 끝 ===
+
     // ===== 추가된 부분 시작 =====
     // 연결 해제된 소켓이 호스트인 경우 처리
     // roomHostMap에서 이 소켓이 호스트인 방 찾기
+    let hostRoomId = null;
     for (const [roomId, hostSocketId] of roomHostMap.entries()) {
       if (hostSocketId === socket.id) {
-        console.log(`🔴 호스트 ${socket.id} 연결 해제: 방 ${roomId}`);
+        hostRoomId = roomId;
+        
         roomHostMap.delete(roomId);
-        pendingClientMap.delete(roomId);
+        console.log(`🔴 호스트 ${socket.id} 연결 해제: 방 ${roomId}`);
+        // 해당 방의 모든 클라이언트에게 라이브 종료 알림
+        io.to(roomId).emit('liveSync', { track: null, currentTime: 0 });
+
+         // Redis에서 정보 삭제 (비동기 작업)
+        (async () => {
+          try {
+            const userEmail = await app.locals.redis.get(`room:${roomId}`);
+            if (userEmail) {
+              await app.locals.redis.hDel('liveSessions', userEmail);
+              await app.locals.redis.del(`room:${roomId}`);
+              console.log(`❌ 호스트 연결 해제로 인한 라이브 세션 종료: ${userEmail}, roomId: ${roomId}`);
+            }
+          } catch (error) {
+            console.error(`❌ Redis 삭제 실패: ${error.message}`);
+          }
+        })();
+        
         break;
       }
     }
