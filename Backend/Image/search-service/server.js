@@ -98,6 +98,57 @@ async function generateUniqueRoomId(redis) {
   return roomId;
 }
 
+// === 추가: Redis에서 호스트 정보 관리 함수 ===
+async function saveHostToRedis(roomId, socketId) {
+  try {
+    await app.locals.redis.hSet('roomHosts', roomId, socketId);
+    console.log(`💾 Redis에 호스트 정보 저장: 방 ${roomId} -> 소켓 ${socketId}`);
+  } catch (error) {
+    console.error(`❌ Redis 호스트 정보 저장 실패: ${error.message}`);
+  }
+}
+
+async function getHostFromRedis(roomId) {
+  try {
+    const hostSocketId = await app.locals.redis.hGet('roomHosts', roomId);
+    if (hostSocketId) {
+      console.log(`🔍 Redis에서 호스트 정보 조회 성공: 방 ${roomId} -> 소켓 ${hostSocketId}`);
+      return hostSocketId;
+    }
+    return null;
+  } catch (error) {
+    console.error(`❌ Redis 호스트 정보 조회 실패: ${error.message}`);
+    return null;
+  }
+}
+
+async function removeHostFromRedis(roomId) {
+  try {
+    await app.locals.redis.hDel('roomHosts', roomId);
+    console.log(`🗑️ Redis에서 호스트 정보 삭제: 방 ${roomId}`);
+  } catch (error) {
+    console.error(`❌ Redis 호스트 정보 삭제 실패: ${error.message}`);
+  }
+}
+
+// 서버 시작 시 Redis에서 호스트 정보 로드하여 메모리 맵 초기화
+async function initializeRoomHostMap() {
+  try {
+    const redisHosts = await app.locals.redis.hGetAll('roomHosts');
+    if (redisHosts && Object.keys(redisHosts).length > 0) {
+      for (const [roomId, socketId] of Object.entries(redisHosts)) {
+        roomHostMap.set(roomId, socketId);
+      }
+      console.log(`🔄 Redis에서 ${Object.keys(redisHosts).length}개의 호스트 정보 로드 완료`);
+    } else {
+      console.log('📝 Redis에 저장된 호스트 정보 없음');
+    }
+  } catch (error) {
+    console.error(`❌ Redis 호스트 정보 초기화 실패: ${error.message}`);
+  }
+}
+
+
 // ===== 추가된 부분 시작 =====
 // 각 방의 호스트 소켓 ID를 저장하는 맵
 const roomHostMap = new Map(); // roomId -> hostSocketId
@@ -115,6 +166,10 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*" }
 });
+
+// === 추가: 서버 시작 시 Redis에서 호스트 정보 로드 ===
+initializeRoomHostMap().catch(err => console.error('호스트 맵 초기화 오류:', err));
+// === 추가 끝 ===
 
 io.on('connection', (socket) => {
   console.log(`새 클라이언트 연결: ${socket.id}`);
@@ -149,10 +204,22 @@ io.on('connection', (socket) => {
     socket.emit('roomJoined', { roomId });
     console.log(`현재 roomHostMap:`, Array.from(roomHostMap.entries()));
 
+    // === 수정: 메모리 맵에서 호스트 확인 후 없으면 Redis 확인 ===
+    let hostSocketId = roomHostMap.get(roomId);
+   
 
-    // 해당 방의 호스트가 있는지 확인
-    const hostSocketId = roomHostMap.get(roomId);
-    
+    if (!hostSocketId) {
+      // 메모리 맵에 없으면 Redis에서 조회
+      hostSocketId = await getHostFromRedis(roomId);
+      
+      // Redis에서 찾았으면 메모리 맵에도 추가
+      if (hostSocketId) {
+        roomHostMap.set(roomId, hostSocketId);
+        console.log(`🔄 Redis에서 찾은 호스트 정보를 메모리 맵에 복원: ${roomId} -> ${hostSocketId}`);
+      }
+    }
+    // === 수정 끝 ===
+
     if (hostSocketId) {
       // === 추가: 호스트 소켓이 실제로 연결되어 있는지 확인 ===
       const hostSocket = io.sockets.sockets.get(hostSocketId);
@@ -330,7 +397,9 @@ io.on('connection', (socket) => {
     
    // ===== 추가된 부분 시작 =====
     // 이 소켓을 해당 방의 호스트로 등록
+    // === 수정: 메모리 맵과 Redis 모두 업데이트 ===
     roomHostMap.set(roomId, socket.id);
+    await saveHostToRedis(roomId, socket.id);
     console.log(`💻 호스트 등록: 방 ${roomId}의 호스트는 ${socket.id}`);
     console.log(`현재 roomHostMap:`, Array.from(roomHostMap.entries()));
     // ===== 추가된 부분 끝 =====
@@ -366,9 +435,10 @@ io.on('connection', (socket) => {
       const parsedSession = JSON.parse(existingSession);
       const roomId = parsedSession.roomId;
 
-      // ===== 추가된 부분 시작 =====
-      // 호스트 맵에서 제거
+      // === 수정: 메모리 맵과 Redis 모두에서 호스트 정보 제거 ===
       roomHostMap.delete(roomId);
+      await removeHostFromRedis(roomId);
+      // === 수정 끝 ===
       // 대기 중인 클라이언트 목록 제거
       pendingClientMap.delete(roomId);
       // ===== 추가된 부분 끝 =====
@@ -506,6 +576,9 @@ socket.on('leaveLiveRoom', (data) => {
     // ===== 추가된 부분 시작 =====
     // 연결 해제된 소켓이 호스트인 경우 처리
     // roomHostMap에서 이 소켓이 호스트인 방 찾기
+
+    
+
     let hostRoomId = null;
     for (const [roomId, hostSocketId] of roomHostMap.entries()) {
       if (hostSocketId === socket.id) {
