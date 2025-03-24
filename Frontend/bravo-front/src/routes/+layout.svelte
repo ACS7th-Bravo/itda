@@ -357,6 +357,7 @@
         console.log('시간 이동 동기화:', newTime);
       }
     }
+}
   
 	// ✅ 일시정지 / 재생 기능 유지
 	function togglePause() {
