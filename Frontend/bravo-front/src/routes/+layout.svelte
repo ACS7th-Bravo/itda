@@ -550,6 +550,9 @@
  
 	  // === 추가: 호스트 상태 복원 시도 (페이지 새로고침 시 라이브 상태 유지) ===03-23
 	  if (liveStatus === 'on' && isLoggedIn && !currentRoomId) {
+		const now = Date.now();
+                    if (!lastLiveUpdateTime || now - lastLiveUpdateTime > 5000) { // 5초 타임아웃
+                        lastLiveUpdateTime = now;
 		  console.log('라이브 상태 복원 시도...');
 		  const hostEmail = user.email.trim().toLowerCase();
 		  // 현재 재생 중인 트랙이 있는 경우에만 발신
@@ -563,6 +566,7 @@
 			});
 		  }
 		 }
+		}
 		 // === 추가 끝 ===
 	   
 	   // 연결 직후 URL 파라미터 확인
@@ -706,8 +710,13 @@
 		   
 		   // 클라이언트가 초기 동기화를 받았으면 수신 확인 전송
 		   if (data.initialSync && currentRoomId) {
-			 socket.emit('syncReceived', { roomId: currentRoomId });
-			 console.log('✅ 동기화 데이터 수신 확인 전송');
+			 // === 추가: 중복 응답 방지 (마지막 syncReceived로부터 0.5초 이상 지난 경우만) ===
+			 const now = Date.now();
+                            if (!socket.lastSyncReceivedTime || now - socket.lastSyncReceivedTime > 500) {
+                                socket.lastSyncReceivedTime = now;
+                                socket.emit('syncReceived', { roomId: currentRoomId });
+                                console.log('✅ 동기화 데이터 수신 확인 전송');
+                            }
 		   }
 		 } else if (data.track === null) {
 		   // 라이브 종료 시 플레이어 정지
@@ -746,6 +755,13 @@
 	 // 클라이언트 참여 이벤트 핸들러 (호스트만 실행)
 	 socket.on('clientJoined', (data) => {
 	   console.log('clientJoined 이벤트 수신:', data);
+
+	   // === 추가: 중복 처리 방지 ===
+	   if (socket.lastClientJoinedTime && Date.now() - socket.lastClientJoinedTime < 500) {
+                    return;
+                }
+                socket.lastClientJoinedTime = Date.now();
+                // === 추가 끝 ===
 	   
 	   if (isLiveHost && liveStatus === 'on') {
 		 const { clientId, roomId } = data;
@@ -884,91 +900,91 @@
  
  // URL 변경 감지 및 라이브 모드 처리 - 통합된 반응형 구문
  $: if (socket && socket.connected) {
-   // 현재 URL에서 liveUser 파라미터 확인
-   const liveUserParam = new URLSearchParams(window.location.search).get('liveUser');
-   console.log('현재 URL 검사:', $page.url.pathname, $page.url.search, '라이브 파라미터:', liveUserParam);
-   
-   // 클라이언트 모드 (라이브 유저 파라미터가 있는 경우)
-   if (liveUserParam && liveUserParam !== currentRoomId) {
-	 handleLiveUserParam(liveUserParam);
-   }
-   // 호스트 모드 (라이브 유저 파라미터가 없는 경우)
-   else if (!liveUserParam && isLoggedIn) {
-	 // 트랙이 변경되었는지 확인
-	 const trackChanged = $currentTrack.name !== previousTrackName || 
-						  $currentTrack.artist !== previousTrackArtist ||
-						  $currentTrack.track_id !== previousTrackId;
-	 
-	 if (liveStatus === 'on' && isPlaying) {
-
-		// === 수정: 중복 이벤트 방지 로직 추가 ===
-		const now = Date.now();
-      if ((previousLiveStatus !== 'on' || !currentRoomId || trackChanged) && 
-          (!lastLiveUpdateTime || now - lastLiveUpdateTime > 5000)) {
-        lastLiveUpdateTime = now;
-        // === 수정 끝 ===
-	   // 최초 라이브 시작 또는 트랙 변경 시에만 이벤트 발생
-	   if (previousLiveStatus !== 'on' || !currentRoomId || trackChanged) {
-		 console.log(`🔴 라이브 시작 또는 트랙 변경: ${$currentTrack.name}`);
-		 
-		 previousLiveStatus = 'on';
-		 previousTrackName = $currentTrack.name;
-		 previousTrackArtist = $currentTrack.artist;
-		 previousTrackId = $currentTrack.track_id;
-		 isLiveHost = true;
-		 
-		 // 한 번만 발송하도록 상태 확인
-		 const hostEmail = user.email.trim().toLowerCase();
-		 socket.emit('liveOn', { 
-		   user: { ...user, email: hostEmail }, 
-		   track: {
-			 ...$currentTrack,
-			 streaming_id: currentYouTubeVideoId
-		   }
-		 });
-		 console.log('호스트 liveOn 발신:', {
-		   user: { ...user, email: hostEmail },
-		   track: $currentTrack
-		 });
- 
-	   // === 추가: 로컬 스토어 업데이트 ===03-23
-	   isLiveMode.set(true);
-		  // === 추가 끝 ===03-23
- 
-	   }
-	 } else if (liveStatus === 'off' && previousLiveStatus === 'on') {
-		// === 수정: 중복 이벤트 방지 로직 추가 ===
-		const now = Date.now();
-      if (!lastLiveUpdateTime || now - lastLiveUpdateTime > 5000) {
-        lastLiveUpdateTime = now;
-        // === 수정 끝 ===
-	   // 라이브 종료
-	   console.log('⚫ 라이브 종료');
-	   
-	   previousLiveStatus = 'off';
-	   previousTrackName = '';
-	   previousTrackArtist = '';
-	   previousTrackId = '';
-	   isLiveHost = false;
- 
-	   // 모든 재시도 타이머 정리
-	   for (const timerId of syncRetryTimers.values()) {
-		 clearInterval(timerId);
-	   }
-	   syncRetryTimers.clear();
-	   
-	   socket.emit('liveOff', { user });
-	   console.log('호스트 liveOff 발신:', { user });
-	   currentRoomId = ''; // roomId 초기화
- 
-	  // === 추가: 로컬 스토어 업데이트 ===03-23
-	  currentRoomIdStore.set('');
-		 isLiveMode.set(false);
-		 // === 추가 끝 ===03-23
- 
-	 }
-   }
- }
+        // 현재 URL에서 liveUser 파라미터 확인
+        const liveUserParam = new URLSearchParams(window.location.search).get('liveUser');
+        
+        // === 추가: 디버깅 정보 최소화 ===
+        if (liveUserParam || liveStatus === 'on') {
+            console.log('현재 URL 검사:', $page.url.pathname, '라이브 파라미터:', liveUserParam);
+        }
+        // === 추가 끝 ===
+        
+        // 클라이언트 모드 (라이브 유저 파라미터가 있는 경우)
+        if (liveUserParam && liveUserParam !== currentRoomId) {
+            handleLiveUserParam(liveUserParam);
+        }
+        // 호스트 모드 (라이브 유저 파라미터가 없는 경우)
+        else if (!liveUserParam && isLoggedIn) {
+            // 트랙이 변경되었는지 확인
+            const trackChanged = $currentTrack.name !== previousTrackName || 
+                                $currentTrack.artist !== previousTrackArtist ||
+                                $currentTrack.track_id !== previousTrackId;
+            
+            if (liveStatus === 'on' && isPlaying) {
+                // === 추가: 중복 이벤트 방지 로직 ===
+                const now = Date.now();
+                // 최초 라이브 시작 또는 트랙 변경 시에만 이벤트 발생 + 중복 방지 타임아웃
+                if ((previousLiveStatus !== 'on' || !currentRoomId || trackChanged) && 
+                    (!lastLiveUpdateTime || now - lastLiveUpdateTime > 5000)) {
+                    // === 추가 끝 ===
+                    
+                    lastLiveUpdateTime = now;
+                    console.log(`🔴 라이브 시작 또는 트랙 변경: ${$currentTrack.name}`);
+                    
+                    previousLiveStatus = 'on';
+                    previousTrackName = $currentTrack.name;
+                    previousTrackArtist = $currentTrack.artist;
+                    previousTrackId = $currentTrack.track_id;
+                    isLiveHost = true;
+                    
+                    // 한 번만 발송하도록 상태 확인
+                    const hostEmail = user.email.trim().toLowerCase();
+                    socket.emit('liveOn', { 
+                        user: { ...user, email: hostEmail }, 
+                        track: {
+                            ...$currentTrack,
+                            streaming_id: currentYouTubeVideoId
+                        }
+                    });
+                    console.log('호스트 liveOn 발신:', {
+                        user: { ...user, email: hostEmail },
+                        track: $currentTrack
+                    });
+            
+                    isLiveMode.set(true);
+                }
+            } else if (liveStatus === 'off' && previousLiveStatus === 'on') {
+                // === 추가: 중복 이벤트 방지 로직 ===
+                const now = Date.now();
+                if (!lastLiveUpdateTime || now - lastLiveUpdateTime > 5000) {
+                    lastLiveUpdateTime = now;
+                    // === 추가 끝 ===
+                    
+                    // 라이브 종료
+                    console.log('⚫ 라이브 종료');
+                    
+                    previousLiveStatus = 'off';
+                    previousTrackName = '';
+                    previousTrackArtist = '';
+                    previousTrackId = '';
+                    isLiveHost = false;
+            
+                    // 모든 재시도 타이머 정리
+                    for (const timerId of syncRetryTimers.values()) {
+                        clearInterval(timerId);
+                    }
+                    syncRetryTimers.clear();
+                    
+                    socket.emit('liveOff', { user });
+                    console.log('호스트 liveOff 발신:', { user });
+                    currentRoomId = '';
+            
+                    currentRoomIdStore.set('');
+                    isLiveMode.set(false);
+                }
+            }
+        }
+    }
  
 // 	$: {
 //    console.log('소켓 상태 확인:', {
