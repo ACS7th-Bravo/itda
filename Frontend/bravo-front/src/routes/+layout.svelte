@@ -22,7 +22,7 @@
 	let user = { email: '', picture: '' }; //2025.02.14 DB 이메일 추출
   
   
-	console.log('백엔드 URL:', import.meta.env.VITE_BACKEND_URL);
+	// console.log('백엔드 URL:', import.meta.env.VITE_BACKEND_URL);
   
   
 	// 기본 볼륨 값을 50로 설정 (0 ~ 100)
@@ -199,7 +199,7 @@
         if (!lastLiveUpdateTime || now - lastLiveUpdateTime > 300) {
           lastLiveUpdateTime = now;
           
-          console.log('트랙 변경 감지, 라이브 동기화...');
+        //   console.log('트랙 변경 감지, 라이브 동기화...');
           const hostEmail = user.email.trim().toLowerCase();
           socket.emit('liveUpdate', { 
             user: { ...user, email: hostEmail }, 
@@ -234,10 +234,10 @@
 		 })
 		   .then((res) => res.json())
 		   .then((data) => {
-			 console.log('트랙 저장 결과:', data);
+			//  console.log('트랙 저장 결과:', data);
 		   })
 		   .catch((error) => {
-			 console.error('트랙 저장 중 오류 발생:', error);
+			//  console.error('트랙 저장 중 오류 발생:', error);
 		   });
   
 		 // YouTube 플레이어 초기화 또는 업데이트
@@ -260,19 +260,19 @@
 				  startProgressUpdate();
 				},
 				onStateChange: (event) => {
-				  console.log('🎬 YouTube 플레이어 상태 변경:', event.data);
+				//   console.log('🎬 YouTube 플레이어 상태 변경:', event.data);
 				  if (event.data === YT.PlayerState.ENDED) {
-					console.log('✅ 곡이 끝남! 다음 곡 자동 재생 시작...');
+					// console.log('✅ 곡이 끝남! 다음 곡 자동 재생 시작...');
 					playNextTrack();
 				  } else if (event.data === YT.PlayerState.PLAYING) {
-					console.log('▶️ 곡 재생 중...'); // [수정됨]
+					// console.log('▶️ 곡 재생 중...'); // [수정됨]
 					isPlaying = true;
 					startProgressUpdate();
 				  } else if (event.data === YT.PlayerState.PAUSED) {
-					console.log('⏸️ 곡 일시 정지됨'); // [수정됨]
+					// console.log('⏸️ 곡 일시 정지됨'); // [수정됨]
 					isPlaying = false;
 				  } else {
-					console.log('⚠️ 알 수 없는 상태 코드:', event.data); // [수정됨]
+					// console.log('⚠️ 알 수 없는 상태 코드:', event.data); // [수정됨]
 					clearInterval(interval);
 				  }
 				}
@@ -288,39 +288,39 @@
   
 	// ✅ 다음 곡 자동 재생 함수
 	async function playNextTrack() {
-	   console.log('⏭️ playNextTrack() 호출됨!'); // [수정됨]
+	//    console.log('⏭️ playNextTrack() 호출됨!'); // [수정됨]
 	   const queue = get(currentQueueStore);
 	   const tracks = queue.length ? queue : $searchResults;
-	   console.log('🔍 현재 검색된 트랙 목록:', tracks);
-	   console.log('🎵 현재 트랙 인덱스:', currentTrackIndex);
+	//    console.log('🔍 현재 검색된 트랙 목록:', tracks);
+	//    console.log('🎵 현재 트랙 인덱스:', currentTrackIndex);
 	   if (currentTrackIndex < tracks.length - 1) {
 		 const nextTrack = tracks[currentTrackIndex + 1];
-		 console.log('✅ 다음 재생할 트랙:', nextTrack);
+		//  console.log('✅ 다음 재생할 트랙:', nextTrack);
 		 // ✅ 기존의 playTrack() 함수를 호출하여 자동 재생
 		 playTrack(nextTrack, currentTrackIndex + 1);
 	   } else {
-		 console.log('⏹️ 더 이상 재생할 트랙이 없습니다.'); // [수정됨]
+		//  console.log('⏹️ 더 이상 재생할 트랙이 없습니다.'); // [수정됨]
 	   }
 	}
   
 	// 이전 곡 재생 함수 추가
 	function playPreviousTrack() {
-	   console.log('⏮️ playPreviousTrack() 호출됨!'); // [수정됨]
+	//    console.log('⏮️ playPreviousTrack() 호출됨!'); // [수정됨]
 	   if (currentTime > 3) {
-		 console.log('현재 재생시간이 3초 이상이므로, 현재 곡을 처음으로 되돌립니다.');
+		//  console.log('현재 재생시간이 3초 이상이므로, 현재 곡을 처음으로 되돌립니다.');
 		 if (youtubePlayer && youtubePlayer.seekTo) {
 		   youtubePlayer.seekTo(0, true);
 		 }
 	   } else {
 		 const queue = get(currentQueueStore);
 		 const tracks = queue.length ? queue : $searchResults;
-		 console.log('현재 트랙 인덱스:', currentTrackIndex);
+		//  console.log('현재 트랙 인덱스:', currentTrackIndex);
 		 if (currentTrackIndex > 0) {
 		   const prevTrack = tracks[currentTrackIndex - 1];
-		   console.log('이전 재생할 트랙:', prevTrack);
+		//    console.log('이전 재생할 트랙:', prevTrack);
 		   playTrack(prevTrack, currentTrackIndex - 1);
 		 } else {
-		   console.log('이전 곡이 없습니다. 현재 곡을 처음으로 되돌립니다.');
+		//    console.log('이전 곡이 없습니다. 현재 곡을 처음으로 되돌립니다.');
 		   if (youtubePlayer && youtubePlayer.seekTo) {
 			 youtubePlayer.seekTo(0, true);
 		   }
@@ -355,7 +355,7 @@
           currentTime: newTime,
           roomId: currentRoomId 
         });
-        console.log('시간 이동 동기화:', newTime);
+        // console.log('시간 이동 동기화:', newTime);
       }
     }
 }
@@ -377,7 +377,7 @@
           lastPlayStateChangeTime = now;
           const playState = { isPaused: !isPlaying, roomId: currentRoomId };
           socket.emit('playStateChanged', playState);
-          console.log('재생 상태 변경 동기화:', playState);
+        //   console.log('재생 상태 변경 동기화:', playState);
         }
       }
 		  // === 추가 끝 ===
@@ -426,7 +426,7 @@
  function handleBeforeUnload(event) {
 	  if (liveStatus === 'on' && isLoggedIn && socket && socket.connected) {
 		socket.emit('liveOff', { user });
-		console.log('페이지 언로드: 호스트 liveOff 발신:', { user });
+		// console.log('페이지 언로드: 호스트 liveOff 발신:', { user });
 	  }
 	}
 	// === 추가 끝 ===03-23
@@ -434,27 +434,27 @@
  function handleLiveUserParam(liveUserParam) {
    if (liveUserParam && socket && socket.connected) {
 	 const roomId = liveUserParam.trim();
-	 console.log(`🔍 URL에서 liveUser 파라미터 감지: ${roomId}`);
+	//  console.log(`🔍 URL에서 liveUser 파라미터 감지: ${roomId}`);
 	 
 	 // 이미 같은 방에 참여중인 경우 재전송하지 않음
 	 if (roomId !== currentRoomId) {
-	   console.log(`🔗 클라이언트가 방 참여 요청: ${roomId}`);
+	//    console.log(`🔗 클라이언트가 방 참여 요청: ${roomId}`);
 	   socket.emit('joinRoom', { roomId });
-	   console.log(`📤 joinRoom 이벤트 전송: ${roomId}`);
+	//    console.log(`📤 joinRoom 이벤트 전송: ${roomId}`);
  
 	  // === 추가: 로컬 스토어 업데이트 ===03-23
 	  currentRoomIdStore.set(roomId);
 		 isLiveMode.set(true);
 		 // === 추가 끝 ===
 	 } else {
-	   console.log(`⚠️ 이미 방 ${roomId}에 참여 중입니다.`);
+	//    console.log(`⚠️ 이미 방 ${roomId}에 참여 중입니다.`);
 	 }
    }
  }
  
  ///온마운트3 시작
  onMount(async () => {
-	console.log('Song 페이지 마운트됨, URL:', window.location.href);
+	// console.log('Song 페이지 마운트됨, URL:', window.location.href);
  
 	 // === 추가: 페이지 언로드 이벤트 리스너 등록 ===03-23
 	 window.addEventListener('beforeunload', handleBeforeUnload);
@@ -473,10 +473,10 @@
 		 name: decoded.name,
 		 picture: decoded.picture
 	   };
-	   console.log('디코딩된 JWT:', decoded);
+	//    console.log('디코딩된 JWT:', decoded);
 	   setContext('currentUser', user);
 	 } catch (error) {
-	   console.error('JWT 디코딩 오류:', error);
+	//    console.error('JWT 디코딩 오류:', error);
 	 }
 	 window.history.replaceState({}, document.title, '/');
    } else {
@@ -490,7 +490,7 @@
 		   name: decoded.name,
 		   picture: decoded.picture
 		 };
-		 console.log('디코딩된 JWT:', decoded);
+		//  console.log('디코딩된 JWT:', decoded);
 		 setContext('currentUser', user);
 	   } catch (error) {
 		 console.error('JWT 디코딩 오류:', error);
@@ -501,7 +501,7 @@
    }
  
    // 2. 유튜브 API 로드 및 UI 관련 이벤트 리스너 설정
-   console.log('🚀 앱 시작...');
+//    console.log('🚀 앱 시작...');
    loadYouTubeAPI();
    window.addEventListener('playTrack', handlePlayTrack);
    setTimeout(() => {
@@ -531,11 +531,11 @@
 		 throw new Error('플레이리스트 조회 실패');
 	   }
 	   const text = await res.text();
-	   console.log('플레이리스트 로드 응답 텍스트:', text);
+	//    console.log('플레이리스트 로드 응답 텍스트:', text);
 	   const data = JSON.parse(text);
 	   existingPlaylists = data; // 로드한 기존 플레이리스트 배열 저장
 	 } catch (error) {
-	   console.error('기존 플레이리스트 로드 실패:', error);
+	//    console.error('기존 플레이리스트 로드 실패:', error);
 	 }
    }
  
@@ -544,18 +544,18 @@
 	 const { io } = await import('socket.io-client');
 	 socket = io(backendUrl, { transports: ['websocket'] });
 	 
-	 console.log('소켓 초기화됨, 연결 시도 중...');
+	//  console.log('소켓 초기화됨, 연결 시도 중...');
 	 
 	 // 새로운 코드: 소켓 연결 상태 확인 및 디버깅
 	 socket.on('connect', () => {
-	   console.log(`⭐ 소켓 연결됨: ${socket.id}`);
+	//    console.log(`⭐ 소켓 연결됨: ${socket.id}`);
  
 	  // === 추가: 호스트 상태 복원 시도 (페이지 새로고침 시 라이브 상태 유지) ===03-23
 	  if (liveStatus === 'on' && isLoggedIn && !currentRoomId) {
 		const now = Date.now();
                     if (!lastLiveUpdateTime || now - lastLiveUpdateTime > 5000) { // 5초 타임아웃
                         lastLiveUpdateTime = now;
-		  console.log('라이브 상태 복원 시도...');
+		//   console.log('라이브 상태 복원 시도...');
 		  const hostEmail = user.email.trim().toLowerCase();
 		  // 현재 재생 중인 트랙이 있는 경우에만 발신
 		  if ($currentTrack.name !== 'IT-DA' && currentYouTubeVideoId) {
@@ -575,12 +575,12 @@
 	   const liveUserParam = urlParams.get('liveUser');
 	   if (liveUserParam) {
 		 const roomId = liveUserParam.trim();
-		 console.log(`🔍 URL에서 liveUser 파라미터 감지: ${roomId}`);
-		 console.log(`🔗 클라이언트가 방 참여 요청: ${roomId}`);
+		//  console.log(`🔍 URL에서 liveUser 파라미터 감지: ${roomId}`);
+		//  console.log(`🔗 클라이언트가 방 참여 요청: ${roomId}`);
 		 
 		 // 연결 직후 방 참여 요청 전송
 		 socket.emit('joinRoom', { roomId });
-		 console.log(`📤 joinRoom 이벤트 전송: ${roomId}`);
+		//  console.log(`📤 joinRoom 이벤트 전송: ${roomId}`);
  
 	   // === 추가: 로컬 스토어 업데이트 ===03-23
 	   currentRoomIdStore.set(roomId);
@@ -593,7 +593,7 @@
  
 	   // === 추가: 소켓 재연결 이벤트 처리 (호스트 상태 복원) ===03-23
 	   socket.on('reconnect', () => {
-		 console.log('소켓 재연결됨, 라이브 상태 확인...');
+		//  console.log('소켓 재연결됨, 라이브 상태 확인...');
 		 if (liveStatus === 'on' && isLoggedIn) {
 		  const hostEmail = user.email.trim().toLowerCase();
 		  socket.emit('liveOn', { 
@@ -613,7 +613,7 @@
 	 
 	 // 방 입장 관련 이벤트 핸들러
 	 socket.on('roomJoined', (data) => {
-	   console.log(`✅ 클라이언트가 방에 성공적으로 입장: ${data.roomId}`);
+	//    console.log(`✅ 클라이언트가 방에 성공적으로 입장: ${data.roomId}`);
 	   currentRoomId = data.roomId;
 	  // === 추가: 로컬 스토어 업데이트 ===03-23
 	  currentRoomIdStore.set(data.roomId);
@@ -623,7 +623,7 @@
 	 
 	 // 방 생성 관련 이벤트 핸들러
 	 socket.on('roomCreated', (data) => {
-	   console.log(`✅ 새 룸 생성됨: ${data.roomId}`);
+	//    console.log(`✅ 새 룸 생성됨: ${data.roomId}`);
 	   currentRoomId = data.roomId;
 	   isLiveHost = true;
 	   // === 추가: 로컬 스토어 업데이트 ===03-23
@@ -634,11 +634,11 @@
 	 
 	 // 라이브 동기화 이벤트 핸들러
 	 socket.on('liveSync', (data) => {
-	   console.log('📡 liveSync 이벤트 수신:', data);
+	//    console.log('📡 liveSync 이벤트 수신:', data);
 	   // === 추가: 중복 처리 방지 ===
 	   const now = Date.now();
         if (socket.lastLiveSyncTime && now - socket.lastLiveSyncTime < 200) {
-          console.log('⚠️ 중복 liveSync 이벤트 무시');
+        //   console.log('⚠️ 중복 liveSync 이벤트 무시');
           return;
         }
         socket.lastLiveSyncTime = now;
@@ -648,7 +648,7 @@
 		 // 곡 정보 및 플레이어 업데이트
 		 if (data.track.streaming_id) {
 			const albumImage = data.track.albumImage || '/default-album.png';
-      console.log(`앨범 이미지 경로: ${albumImage}`);
+    //   console.log(`앨범 이미지 경로: ${albumImage}`);
       
 		   currentTrack.update((t) => ({
 			 ...t,
@@ -661,7 +661,7 @@
 		   
 		   // 새 곡 또는 초기 동기화인 경우 YouTube 플레이어 업데이트
 		   if (youtubePlayer) {
-			 console.log(`🎵 기존 플레이어 업데이트, 비디오 ID: ${data.track.streaming_id}, 시간: ${data.currentTime || 0}`);
+			//  console.log(`🎵 기존 플레이어 업데이트, 비디오 ID: ${data.track.streaming_id}, 시간: ${data.currentTime || 0}`);
 			 youtubePlayer.loadVideoById({
 			   videoId: data.track.streaming_id,
 			   startSeconds: data.currentTime || 0
@@ -670,7 +670,7 @@
 			 startProgressUpdate();
 		   } else {
 			 // 플레이어가 없는 경우 새로 생성
-			 console.log(`🆕 새 플레이어 생성, 비디오 ID: ${data.track.streaming_id}, 시간: ${data.currentTime || 0}`);
+			//  console.log(`🆕 새 플레이어 생성, 비디오 ID: ${data.track.streaming_id}, 시간: ${data.currentTime || 0}`);
 			 youtubePlayer = new YT.Player('youtube-player', {
 			   height: '0',
 			   width: '0',
@@ -686,7 +686,7 @@
 			   },
 			   events: {
 				 onReady: () => {
-				   console.log('🎬 YouTube 플레이어 준비됨');
+				//    console.log('🎬 YouTube 플레이어 준비됨');
 				   youtubePlayer.playVideo();
 				   if (data.currentTime > 0) {
 					 youtubePlayer.seekTo(data.currentTime, true);
@@ -695,14 +695,14 @@
 				 },
 				 onStateChange: (event) => {
 				   if (event.data === YT.PlayerState.PLAYING) {
-					 console.log('▶️ 곡 재생 중...');
+					//  console.log('▶️ 곡 재생 중...');
 					 isPlaying = true;
 					 startProgressUpdate();
 				   } else if (event.data === YT.PlayerState.PAUSED) {
-					 console.log('⏸️ 곡 일시 정지됨');
+					//  console.log('⏸️ 곡 일시 정지됨');
 					 isPlaying = false;
 				   } else if (event.data === YT.PlayerState.ENDED) {
-					 console.log('✅ 곡이 끝남!');
+					//  console.log('✅ 곡이 끝남!');
 					 // 라이브 모드에서는 자동 재생하지 않음
 					 if (!currentRoomId) {
 					   playNextTrack();
@@ -720,7 +720,7 @@
                             if (!socket.lastSyncReceivedTime || now - socket.lastSyncReceivedTime > 500) {
                                 socket.lastSyncReceivedTime = now;
                                 socket.emit('syncReceived', { roomId: currentRoomId });
-                                console.log('✅ 동기화 데이터 수신 확인 전송');
+                                // console.log('✅ 동기화 데이터 수신 확인 전송');
                             }
 		   }
 		 } else if (data.track === null) {
@@ -735,7 +735,7 @@
  
 	// === 추가: 재생 상태 변경 이벤트 처리 ===03-23
 	socket.on('playStateUpdate', (data) => {
-		 console.log('재생 상태 업데이트 수신:', data);
+		//  console.log('재생 상태 업데이트 수신:', data);
 		 if (youtubePlayer) {
 		  if (data.isPaused) {
 			youtubePlayer.pauseVideo();
@@ -750,7 +750,7 @@
  
 	   // === 추가: 시간 이동 이벤트 처리 ===03-23
 	   socket.on('seekUpdate', (data) => {
-		 console.log('시간 이동 업데이트 수신:', data);
+		//  console.log('시간 이동 업데이트 수신:', data);
 		 if (youtubePlayer && data.currentTime !== undefined) {
 		  youtubePlayer.seekTo(data.currentTime, true);
 		 }
@@ -759,7 +759,7 @@
 	 
 	 // 클라이언트 참여 이벤트 핸들러 (호스트만 실행)
 	 socket.on('clientJoined', (data) => {
-	   console.log('clientJoined 이벤트 수신:', data);
+	//    console.log('clientJoined 이벤트 수신:', data);
 
 	   // === 추가: 중복 처리 방지 ===
 	   if (socket.lastClientJoinedTime && Date.now() - socket.lastClientJoinedTime < 500) {
@@ -770,13 +770,13 @@
 	   
 	   if (isLiveHost && liveStatus === 'on') {
 		 const { clientId, roomId } = data;
-		 console.log(`🆕 새 클라이언트 참여: ${clientId}, 방: ${roomId}`);
+		//  console.log(`🆕 새 클라이언트 참여: ${clientId}, 방: ${roomId}`);
 		 
 		 // 현재 스트리밍 ID 확인
 		 const streamingId = currentYouTubeVideoId || $currentTrack.streaming_id;
 		 
 		 if (!streamingId) {
-		   console.log('⚠️ 현재 스트리밍 ID가 없음, 동기화 불가');
+		//    console.log('⚠️ 현재 스트리밍 ID가 없음, 동기화 불가');
 		   return;
 		 }
 		 
@@ -787,7 +787,7 @@
 		 }
 		 
 		 // 클라이언트에게 현재 재생 정보 전송
-		 console.log(`📤 클라이언트 ${clientId}에게 초기 동기화 전송`);
+		//  console.log(`📤 클라이언트 ${clientId}에게 초기 동기화 전송`);
 		 socket.emit('hostSync', {
 		   clientId,
 		   roomId,
@@ -804,7 +804,7 @@
 		   if (retryCount >= MAX_SYNC_RETRY) {
 			 clearInterval(timerId);
 			 syncRetryTimers.delete(clientId);
-			 console.log(`⚠️ 클라이언트 ${clientId} 동기화 최대 재시도 횟수 초과`);
+			//  console.log(`⚠️ 클라이언트 ${clientId} 동기화 최대 재시도 횟수 초과`);
 			 return;
 		   }
 		   
@@ -817,7 +817,7 @@
 		   }
 		   
 		   // 재시도
-		   console.log(`🔄 클라이언트 ${clientId} 동기화 재시도 #${retryCount}`);
+		//    console.log(`🔄 클라이언트 ${clientId} 동기화 재시도 #${retryCount}`);
 		   socket.emit('hostSync', {
 			 clientId,
 			 roomId,
@@ -831,7 +831,7 @@
 		 
 		 syncRetryTimers.set(clientId, timerId);
 	   } else {
-		 console.log(`⚠️ 호스트 상태 아님 또는 라이브 중이 아님: isHost=${isLiveHost}, liveStatus=${liveStatus}`);
+		//  console.log(`⚠️ 호스트 상태 아님 또는 라이브 중이 아님: isHost=${isLiveHost}, liveStatus=${liveStatus}`);
 	   }
 	 });
  
@@ -839,7 +839,7 @@
 	socket.on('leaveLiveRoom', (event) => {
 		 if (socket && socket.connected && event.detail && event.detail.roomId) {
 		  socket.emit('leaveLiveRoom', { roomId: event.detail.roomId });
-		  console.log(`🚪 leaveLiveRoom 이벤트 발신: ${event.detail.roomId}`);
+		//   console.log(`🚪 leaveLiveRoom 이벤트 발신: ${event.detail.roomId}`);
 		  
 		  // 클라이언트인 경우에만 roomId 초기화
 		  if (!isLiveHost) {
@@ -865,7 +865,7 @@
    window.addEventListener('leaveLiveRoom', (event) => {
 	   if (socket && socket.connected && event.detail && event.detail.roomId) {
 		 socket.emit('leaveLiveRoom', { roomId: event.detail.roomId });
-		 console.log(`🚪 leaveLiveRoom 이벤트 발신: ${event.detail.roomId}`);
+		//  console.log(`🚪 leaveLiveRoom 이벤트 발신: ${event.detail.roomId}`);
 		 
 		 // 클라이언트인 경우에만 roomId 초기화
 		 if (!isLiveHost) {
@@ -910,7 +910,7 @@
         
         // === 추가: 디버깅 정보 최소화 ===
         if (liveUserParam || liveStatus === 'on') {
-            console.log('현재 URL 검사:', $page.url.pathname, '라이브 파라미터:', liveUserParam);
+            // console.log('현재 URL 검사:', $page.url.pathname, '라이브 파라미터:', liveUserParam);
         }
         // === 추가 끝 ===
         
@@ -934,7 +934,7 @@
                     // === 추가 끝 ===
                     
                     lastLiveUpdateTime = now;
-                    console.log(`🔴 라이브 시작 또는 트랙 변경: ${$currentTrack.name}`);
+                    // console.log(`🔴 라이브 시작 또는 트랙 변경: ${$currentTrack.name}`);
                     
                     previousLiveStatus = 'on';
                     previousTrackName = $currentTrack.name;
@@ -951,10 +951,10 @@
                             streaming_id: currentYouTubeVideoId
                         }
                     });
-                    console.log('호스트 liveOn 발신:', {
-                        user: { ...user, email: hostEmail },
-                        track: $currentTrack
-                    });
+                    // console.log('호스트 liveOn 발신:', {
+                    //     user: { ...user, email: hostEmail },
+                    //     track: $currentTrack
+                    // });
             
                     isLiveMode.set(true);
                 }
@@ -966,7 +966,7 @@
                     // === 추가 끝 ===
                     
                     // 라이브 종료
-                    console.log('⚫ 라이브 종료');
+                    // console.log('⚫ 라이브 종료');
                     
                     previousLiveStatus = 'off';
                     previousTrackName = '';
@@ -981,7 +981,7 @@
                     syncRetryTimers.clear();
                     
                     socket.emit('liveOff', { user });
-                    console.log('호스트 liveOff 발신:', { user });
+                    // console.log('호스트 liveOff 발신:', { user });
                     currentRoomId = '';
             
                     currentRoomIdStore.set('');
@@ -1397,7 +1397,7 @@
 		   throw new Error('기존 플레이리스트에 곡 추가 실패');
 		 }
 		 const data = await response.json();
-		 console.log('기존 플레이리스트 업데이트 성공:', data);
+		//  console.log('기존 플레이리스트 업데이트 성공:', data);
 		 // 업데이트 후 playlistManager 업데이트 (필요하면 다시 불러오기)
 		 playlistManager.update((groups) =>
 		   groups.map((group) => (group._id === playlistId ? data : group))

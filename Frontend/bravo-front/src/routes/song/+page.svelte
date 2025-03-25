@@ -88,7 +88,7 @@
       // 이미 참여 중인지 확인
       const currentRoomId = get(currentRoomIdStore);
       if (roomId === currentRoomId) {
-        console.log(`⚠️ 이미 방 ${roomId}에 참여 중입니다.`);
+        // console.log(`⚠️ 이미 방 ${roomId}에 참여 중입니다.`);
         return;
       }
       
@@ -97,7 +97,7 @@
         bubbles: true 
       });
       window.dispatchEvent(joinEvent);
-      console.log(`🔔 Song 페이지에서 joinLiveRoom 이벤트 발신: ${roomId}`);
+    //   console.log(`🔔 Song 페이지에서 joinLiveRoom 이벤트 발신: ${roomId}`);
     }
   }, 300);
   // === 수정 끝 ===
@@ -106,7 +106,7 @@
   const leaveLiveRoom = debounce(() => {
     const currentRoomId = get(currentRoomIdStore);
     if (currentRoomId) {
-      console.log(`🚪 라이브 룸 나가기: ${currentRoomId}`);
+    //   console.log(`🚪 라이브 룸 나가기: ${currentRoomId}`);
       const leaveEvent = new CustomEvent('leaveLiveRoom', { 
         detail: { roomId: currentRoomId },
         bubbles: true 
@@ -125,7 +125,7 @@
 	 liveUserParam = urlParams.get('liveUser');
 	 // === 추가: 중복 처리 방지 로직 ===
 	 if (liveUserParam) {
-      console.log(`🔍 Song 페이지에서 liveUser 파라미터 감지: ${liveUserParam}`);
+    //   console.log(`🔍 Song 페이지에서 liveUser 파라미터 감지: ${liveUserParam}`);
       
       // 방 참여 요청 이벤트 발신 (디바운스 적용됨)
       dispatchJoinRoomEvent(liveUserParam);
@@ -134,7 +134,7 @@
 	 
 	 if (liveUserParam) {
 	   isLiveMode = true;
-	   console.log(`🔍 Song 페이지에서 liveUser 파라미터 감지: ${liveUserParam}`);
+	//    console.log(`🔍 Song 페이지에서 liveUser 파라미터 감지: ${liveUserParam}`);
 	   
 	   // 방 참여 요청 이벤트 발신
 	   dispatchJoinRoomEvent(liveUserParam);
@@ -164,7 +164,7 @@
 		 liveUserParam = newLiveUserParam;
 		 
 		 if (liveUserParam) {
-		   console.log(`🔄 Song 페이지에서 liveUser 파라미터 변경 감지: ${liveUserParam}`);
+		//    console.log(`🔄 Song 페이지에서 liveUser 파라미터 변경 감지: ${liveUserParam}`);
 		   dispatchJoinRoomEvent(liveUserParam);
 		 }
 	   }

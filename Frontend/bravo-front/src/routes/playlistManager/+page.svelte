@@ -37,7 +37,7 @@
 					throw new Error('플레이리스트 조회 실패');
 				}
 				const text = await res.text();
-				console.log('플레이리스트 로드 응답 텍스트:', text);
+				// console.log('플레이리스트 로드 응답 텍스트:', text);
 				const data = JSON.parse(text);
 				playlistManager.set(data);
 			} catch (error) {
@@ -48,7 +48,7 @@
 
 	// 플레이리스트 썸네일 클릭 시 재생 대신 상세 페이지로 이동하도록 수정 (동적 경로 대신 쿼리 파라미터 사용)
 	function goToPlaylistDetail(playlist) {
-		console.log('플레이리스트 객체:', playlist);
+		// console.log('플레이리스트 객체:', playlist);
 
 		// 예: /playlistDetail?playlistId={playlist._id} 로 이동
 		goto(`/playlistDetail?playlistId=${playlist._id}`);

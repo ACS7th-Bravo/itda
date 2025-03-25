@@ -12,7 +12,7 @@
 	   const res = await fetch(`${backendUrl}/api/live`);
 	   if (res.ok) {
 		 liveStreams = await res.json();
-		 console.log('Fetched live sessions:', liveStreams);
+		//  console.log('Fetched live sessions:', liveStreams);
 	   } else {
 		 console.error('Failed to fetch live sessions');
 	   }

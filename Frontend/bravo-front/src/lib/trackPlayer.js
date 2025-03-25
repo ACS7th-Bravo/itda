@@ -19,7 +19,7 @@ async function getStreamingIdFromDB(trackId) {
 			const data = await response.json();
 			// data.streaming_id가 존재하면 DB에서 가져온 streaming_id임
 			if (data && data.streaming_id) {
-				console.log('🔍 DB에서 가져온 streaming_id:', data.streaming_id);
+				// console.log('🔍 DB에서 가져온 streaming_id:', data.streaming_id);
 				return data.streaming_id; // DB에서 가져온 streaming_id
 			}
 		}
@@ -33,8 +33,8 @@ async function getStreamingIdFromDB(trackId) {
 // ✅ YouTube에서 videoId 가져오기 (백엔드 호출)
 export async function getYouTubeVideo(trackName, artistName) {
 	const url = `${backendUrl}/api/youtube/search?trackName=${encodeURIComponent(trackName)}&artistName=${encodeURIComponent(artistName)}`;
-	console.log('검색한 키워드: ', `${trackName} ${artistName} official audio`);
-	console.log('백엔드 유튜브 검색 url은: ', url);
+	// console.log('검색한 키워드: ', `${trackName} ${artistName} official audio`);
+	// console.log('백엔드 유튜브 검색 url은: ', url);
 
 	try {
 		const response = await fetch(url, {
@@ -68,7 +68,7 @@ export async function playTrack(track, index) {
 		return;
 	}
 
-	console.log('▶️ track 정보: ', track);
+	// console.log('▶️ track 정보: ', track);
 
 	// ✅ 영어 제목 & 영어 아티스트명을 우선적으로 사용
 	const trackName = track.englishTrackName || track.name || 'Unknown Track';
@@ -78,18 +78,18 @@ export async function playTrack(track, index) {
 			? track.artists.map((a) => a.name).join(', ')
 			: track.artist || 'Unknown Artist';
 
-	console.log('🎵 English Name: ', trackName);
-	console.log('🎵 English Artist: ', artistName);
+	// console.log('🎵 English Name: ', trackName);
+	// console.log('🎵 English Artist: ', artistName);
 
 	let videoId = await getStreamingIdFromDB(track.id);
 	if (videoId) {
-		console.log('✅ DB에서 가져온 streaming_id 사용:', videoId);
-		console.log('※ 이 streaming_id는 DB에서 가져온 것입니다.');
+		// console.log('✅ DB에서 가져온 streaming_id 사용:', videoId);
+		// console.log('※ 이 streaming_id는 DB에서 가져온 것입니다.');
 	} else {
 		// DB에 해당 트랙의 streaming_id가 없으면 기존대로 YouTube API를 호출합니다.
 		videoId = await getYouTubeVideo(trackName, artistName);
-		console.log('✅ YouTube API를 통해 가져온 streaming_id:', videoId);
-		console.log('※ 이 streaming_id는 YouTube API에서 가져온 것입니다.');
+		// console.log('✅ YouTube API를 통해 가져온 streaming_id:', videoId);
+		// console.log('※ 이 streaming_id는 YouTube API에서 가져온 것입니다.');
 	}
 	// ============================================================
 

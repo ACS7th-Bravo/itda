@@ -46,7 +46,7 @@
 	function addToPlaylist(track, index) {
 		// 로컬 스토어 업데이트와 함께 DB에 저장 (userEmail를 인자로 전달)
 		addTrackToPlaylist(track, userEmail);
-		console.log('플레이리스트에 추가:', track);
+		// console.log('플레이리스트에 추가:', track);
 	}
 
 	onMount(searchTracks);

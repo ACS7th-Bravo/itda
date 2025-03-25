@@ -18,10 +18,10 @@ export function addTrackToPlaylist(track, userEmail, playlistName = 'My Playlist
 /*
   트랙 객체 예시:
   {
-    name: "트랙 제목",
-    artist: "아티스트 이름",
-    albumImage: "앨범 이미지 URL",
-    videoId: "유튜브 비디오 아이디" // 선택사항
+	name: "트랙 제목",
+	artist: "아티스트 이름",
+	albumImage: "앨범 이미지 URL",
+	videoId: "유튜브 비디오 아이디" // 선택사항
   }
 */
 
@@ -56,7 +56,7 @@ export async function savePlaylistToDB(userEmail, playlistName, tracks) {
 			throw new Error('플레이리스트 저장에 실패하였습니다.');
 		}
 		const data = await response.json();
-		console.log('플레이리스트 저장 성공:', data);
+		// console.log('플레이리스트 저장 성공:', data);
 	} catch (error) {
 		console.error('플레이리스트 저장 중 에러 발생:', error);
 	}
