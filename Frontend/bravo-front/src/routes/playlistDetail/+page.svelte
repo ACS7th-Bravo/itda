@@ -292,7 +292,7 @@
 		color: #ccc;
 	}
 	.default-btn {
-		background-color: #1db954;
+		background-color: #2784cc;
 		border: none;
 		color: white;
 		padding: 8px 12px;
@@ -339,7 +339,7 @@
 	}
 
 	.delete-btn:hover {
-		color: rgb(0, 255, 60);
+		color: #2784cc;
 	}
 
 	.play-btn {
@@ -353,6 +353,6 @@
 	}
 
 	.play-btn:hover {
-		color: rgb(0, 255, 60);
+		color: #2784cc;
 	}
 </style>

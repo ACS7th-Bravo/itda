@@ -194,8 +194,8 @@
 		width: 50px;
 		height: 45px;
 	}
-	.search-container button:hover {
-		background: palevioletred;
+	.playlist-play-btn:hover {
+		background: hotpink;
 	}
 	.track-buttons {
 		margin-left: auto;
