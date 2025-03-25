@@ -1520,9 +1520,9 @@
 	   <h2><a href="/">It-Da</a></h2>
 	   <nav>
 		 <ul>
-		   <li><a href="/search">Search</a></li>
-		   <li><a href="/playlistManager">Playlist</a></li>
-		   <li><a href="/podcast">Podcast</a></li>
+		   <li><a href="/search">🔍Search</a></li>
+		   <li><a href="/playlistManager">📜Playlist</a></li>
+		   <li><a href="/podcast">🎙️Podcast</a></li>
 		 </ul>
 	   </nav>
   
