@@ -1552,7 +1552,7 @@
 			 <span>반갑습니다! {user.name} 님</span>
 			 <button on:click={logout} style="margin-left: 10px;">로그아웃</button>
 			 <button on:click={togglePlaylist}>
-			 {showPlaylist ? '플레이리스트 숨기기' : '플레이리스트 보기'}
+			 {showPlaylist ? '플레이리스트 숨기기' : '플레이리스트 추가'}
 			 </button>
 		   </div>
 		  {:else}
