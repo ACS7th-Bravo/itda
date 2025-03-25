@@ -322,10 +322,10 @@ $: translatedLines = typeof translatedLyrics === 'string' ? translatedLyrics.spl
 		font-size: 1.6rem;
 		/* color: white; */
 		font-weight: bold;
-		/* background: rgba(255, 255, 255, 0.3); */
-		/* padding: 0.2em 0.4em; */
+		background: rgba(255, 255, 255, 0.3);
+		padding: 0.2em 0.4em;
 		transition: background 0.3s ease, color 0.3s ease;
-		text-shadow: -1px 0px white, 0px 1px white, 1px 0px white, 0px -1px white;
+		/* text-shadow: -1px 0px white, 0px 1px white, 1px 0px white, 0px -1px white; */
 	}
 
 	.lyrics-container {
