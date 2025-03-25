@@ -318,7 +318,7 @@ $: translatedLines = typeof translatedLyrics === 'string' ? translatedLyrics.spl
 <style>
 	.highlight {
 		/* color: var(--highlight-color, #1db954); */
-		color: #1db954;
+		color: #40d2ff;
 		font-size: 1.6rem;
 		/* color: white; */
 		font-weight: bold;
