@@ -183,7 +183,7 @@
 	}
 	.search-container button {
 		white-space: nowrap;
-		background: #1db954;
+		background: #2784cc;
 		color: white;
 		border: none;
 		padding: 8px 12px;
@@ -203,7 +203,7 @@
 		gap: 8px; /* 버튼 간 간격 */
 	}
 	.track .playlist-play-btn {
-		background: #1db954;
+		background: #2784cc;
 		color: white;
 		border: none;
 		padding: 8px 12px;
@@ -220,7 +220,7 @@
 		cursor: pointer;
 		background: none;
 		color: rgb(255, 255, 255);
-		-webkit-text-stroke: 1px #1db954; /* 글씨 테두리 */
+		-webkit-text-stroke: 1px #2784cc; /* 글씨 테두리 */
 	}
 	.playlist-add-btn:hover {
 		color: hotpink;

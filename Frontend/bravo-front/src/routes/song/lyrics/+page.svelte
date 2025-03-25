@@ -318,7 +318,7 @@ $: translatedLines = typeof translatedLyrics === 'string' ? translatedLyrics.spl
 <style>
 	.highlight {
 		/* color: var(--highlight-color, #1db954); */
-		color: #1db954;
+		color: #2784cc;
 		font-size: 1.6rem;
 		/* color: white; */
 		font-weight: bold;
@@ -354,11 +354,11 @@ $: translatedLines = typeof translatedLyrics === 'string' ? translatedLyrics.spl
 	.line-pair .original {
 		margin-bottom: 2px;
 	}
-	.translated-lyrics {
+	/* .translated-lyrics {
 		text-decoration: underline;
 		text-decoration-color: #17a44d;
 		text-decoration-thickness: 2px;
-	}
+	} */
 
 	/* .translated-lyrics {
 		text-decoration: underline;

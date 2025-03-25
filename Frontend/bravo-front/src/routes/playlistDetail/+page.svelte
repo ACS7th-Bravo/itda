@@ -300,7 +300,7 @@
 		cursor: pointer;
 	}
 	.default-btn:hover {
-		background-color: #17a44d;
+		background-color: #2784cc;
 	}
 	.error {
 		color: red;

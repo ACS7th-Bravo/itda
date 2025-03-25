@@ -1872,7 +1872,7 @@
 	}
   
 	.player button:hover {
-	   color: #1db954;
+	   color: #2784cc;
 	}
   
 	.wrap-time {
@@ -1906,7 +1906,7 @@
   
 	.progress-bar::-webkit-slider-thumb {
 	   appearance: none;
-	   background: #1db954;
+	   background: #2784cc;
 	   width: 10px;
 	   height: 10px;
 	   border-radius: 50%;
@@ -1918,7 +1918,7 @@
 	}
   
 	.login-header button {
-	   background: #1db954;
+	   background: #2784cc;
 	   color: white;
 	   border: none;
 	   padding: 8px 12px;
@@ -1955,7 +1955,7 @@
 	/* 웹킷 기반 브라우저용 슬라이더 thumb 스타일 */
 	.volume-slider::-webkit-slider-thumb {
 	   appearance: none;
-	   background: #1db954;
+	   background: #2784cc;
 	   width: 10px;
 	   height: 10px;
 	   border-radius: 50%;
@@ -1964,7 +1964,7 @@
   
 	/* 파이어폭스 등 다른 브라우저 지원 */
 	.volume-slider::-moz-range-thumb {
-	   background: #1db954;
+	   background: #2784cc;
 	   width: 10px;
 	   height: 10px;
 	   border-radius: 50%;
@@ -2113,7 +2113,7 @@
 	   border-radius: 50%;
 	}
 	input:checked + .slider {
-	   background-color: #1db954;
+	   background-color: #2784cc;
 	}
 	input:checked + .slider:before {
 	   transform: translateX(26px);
@@ -2121,7 +2121,7 @@
 	.live-text {
 	   margin-left: 10px;
 	   font-size: 16px;
-	   color: #1db954;
+	   color: #2784cc;
 	}
 	/* .left-area에 flex를 적용해서 자식 요소(제목, 토글버튼)를 가로로 배치 */
   .left-area {

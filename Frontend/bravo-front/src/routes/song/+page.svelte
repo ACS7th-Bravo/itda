@@ -558,7 +558,7 @@
 	   margin-top: 10px;
 	}
 	.lyrics-toggle {
-	   background: #1db954;
+	   background: #2784cc;
 	   color: white;
 	   border: none;
 	   padding: 12px 20px;
@@ -578,7 +578,7 @@
 	   border: none;
 	   border-radius: 5px;
 	   cursor: pointer;
-	   background-color: #1db954;
+	   background-color: #2784cc;
 	   color: white;
 	   transition: background-color 0.3s;
 	}
