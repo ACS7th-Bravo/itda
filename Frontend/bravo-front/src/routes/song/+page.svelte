@@ -570,7 +570,7 @@
 	   z-index: 10;
 	}
 	.lyrics-toggle:hover {
-	   background: #1a954b;
+	   background: hotpink;
 	}
 	.translate-button {
 	   padding: 12px 20px;
@@ -583,7 +583,7 @@
 	   transition: background-color 0.3s;
 	}
 	.translate-button:hover {
-	   background-color: #17a44d;
+	   background-color: hotpink;
 	}
 	.indicator-container {
 	   margin-top: 5px;
