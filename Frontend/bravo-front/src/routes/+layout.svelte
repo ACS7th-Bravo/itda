@@ -1520,17 +1520,11 @@
 	   <h2><a href="/">It-Da</a></h2>
 	   <nav>
 		 <ul>
-		   <li><a href="/about">About</a></li>
-		   <li><a href="/hi">Hi</a></li>
 		   <li><a href="/search">Search</a></li>
+		   <li><a href="/playlistManager">Playlist</a></li>
 		   <li><a href="/podcast">Podcast</a></li>
 		 </ul>
 	   </nav>
-	   <h3>Library</h3>
-	   <ul>
-		 <li><a href="/favorites">Favorites</a></li>
-		 <li><a href="/playlistManager">Playlist</a></li>
-	   </ul>
   
 	   <div class="logo-container">
 		 <img src="/logo2.png" alt="Logo" class="logo-image" />
